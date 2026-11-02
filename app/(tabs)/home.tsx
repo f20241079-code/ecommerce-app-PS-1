@@ -10,6 +10,11 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useTheme } from "@/context/ThemeContext";
+import { useCart } from "@/context/CartContext";
+import { useWishlist } from "@/context/WishlistContext";
+import RecommendedProducts from "@/components/RecommendedProducts";
+import { findProduct } from "@/lib/products";
+import { useRecommendations } from "@/lib/recommendations";
 
 const categories = [
   { id: "1", name: "Electronics", icon: "📱", color: "#6C63FF" },
@@ -64,6 +69,18 @@ export default function Home() {
   const router = useRouter();
   const { colors } = useTheme();
   const { width } = useWindowDimensions();
+  const { items: cartItems } = useCart();
+  const { items: wishlistItems } = useWishlist();
+
+  // The user's interests (cart + wishlist) seed the ML recommendations.
+  const seedIds = React.useMemo(
+    () =>
+      [...cartItems, ...wishlistItems]
+        .map((i) => findProduct(i.id, i.name)?.id)
+        .filter((id): id is string => !!id),
+    [cartItems, wishlistItems]
+  );
+  const recommendations = useRecommendations(seedIds, 8);
 
   const navigateToProduct = (item: any) => {
     router.push({
@@ -176,6 +193,13 @@ export default function Home() {
         )}
       />
 
+      {/* Personalised ML recommendations */}
+      <RecommendedProducts
+        title={seedIds.length > 0 ? "💡 Recommended for You" : "💡 Popular Picks"}
+        result={recommendations}
+        style={styles.recommendedSection}
+      />
+
       {/* Featured Products - Horizontal Scroll */}
       <View style={styles.sectionHeader}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>🔥 Featured</Text>
@@ -253,6 +277,7 @@ export default function Home() {
 }
 
 const styles = StyleSheet.create({
+  recommendedSection: { paddingLeft: 20, paddingRight: 10, marginBottom: 20 },
   container: { flex: 1 },
   header: { paddingTop: 50, paddingBottom: 24, paddingHorizontal: 20, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   greeting: { fontSize: 13, color: "rgba(255,255,255,0.8)", marginBottom: 2 },

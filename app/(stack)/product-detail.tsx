@@ -12,6 +12,9 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTheme } from "@/context/ThemeContext";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
+import RecommendedProducts from "@/components/RecommendedProducts";
+import { findProduct } from "@/lib/products";
+import { useSimilarProducts } from "@/lib/recommendations";
 
 const { width } = Dimensions.get("window");
 
@@ -23,13 +26,6 @@ const productDescriptions: { [key: string]: string } = {
   "Samsung 65\" TV": "Quantum HDR 32x, Real Game Enhancer+. Stunning 4K picture quality with Neural Quantum Processor. Smart TV with built-in streaming.",
 };
 
-const relatedProducts = [
-  { id: "r1", name: "AirPods Pro", price: 199, icon: "🎧", rating: 4.8 },
-  { id: "r2", name: "Apple Watch", price: 399, icon: "⌚", rating: 4.7 },
-  { id: "r3", name: "iPad Pro", price: 799, icon: "📱", rating: 4.8 },
-  { id: "r4", name: "MacBook Air", price: 1099, icon: "💻", rating: 4.7 },
-];
-
 export default function ProductDetail() {
   const { name, price, rating, icon, id, originalPrice, reviews, badge, description } = useLocalSearchParams();
   const router = useRouter();
@@ -38,10 +34,12 @@ export default function ProductDetail() {
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   const [quantity, setQuantity] = useState(1);
   const [selectedColor, setSelectedColor] = useState(0);
+  const catalogProduct = findProduct(id as string, name as string);
+  const similar = useSimilarProducts(catalogProduct?.id);
 
   const inWishlist = isInWishlist(id as string);
   const discount = originalPrice ? Math.round(((Number(originalPrice) - Number(price)) / Number(originalPrice)) * 100) : 0;
-  const productDesc = description as string || productDescriptions[name as string] || "Premium quality product with excellent features and durability. Perfect for everyday use and comes with a 1 year warranty and free returns within 30 days.";
+  const productDesc = description as string || productDescriptions[name as string] || catalogProduct?.description || "Premium quality product with excellent features and durability. Perfect for everyday use and comes with a 1 year warranty and free returns within 30 days.";
 
   const colors_list = ["⚫", "⚪", "🔵", "🔴"];
 
@@ -183,25 +181,12 @@ export default function ProductDetail() {
           ))}
         </View>
 
-        {/* Related Products */}
-        <View style={styles.relatedSection}>
-          <Text style={[styles.sectionTitle, { color: colors.text, paddingHorizontal: 0, marginBottom: 12 }]}>
-            You May Also Like
-          </Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {relatedProducts.map((item) => (
-              <TouchableOpacity
-                key={item.id}
-                style={[styles.relatedCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-              >
-                <Text style={styles.relatedIcon}>{item.icon}</Text>
-                <Text style={[styles.relatedName, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
-                <Text style={[styles.relatedPrice, { color: colors.primary }]}>${item.price}</Text>
-                <Text style={[styles.relatedRating, { color: colors.subtext }]}>⭐ {item.rating}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
+        {/* Related Products (ML recommendations) */}
+        <RecommendedProducts
+          title="You May Also Like"
+          result={similar}
+          style={styles.relatedSection}
+        />
 
         <View style={{ height: 100 }} />
       </ScrollView>
@@ -256,11 +241,6 @@ const styles = StyleSheet.create({
   description: { fontSize: 14, lineHeight: 22 },
   feature: { fontSize: 13, marginBottom: 6, lineHeight: 20 },
   relatedSection: { marginHorizontal: 16, marginBottom: 12 },
-  relatedCard: { width: 120, borderRadius: 14, padding: 12, marginRight: 10, borderWidth: 1, alignItems: "center" },
-  relatedIcon: { fontSize: 36, marginBottom: 6 },
-  relatedName: { fontSize: 11, fontWeight: "bold", marginBottom: 4, textAlign: "center" },
-  relatedPrice: { fontSize: 13, fontWeight: "bold", marginBottom: 2 },
-  relatedRating: { fontSize: 10 },
   bottomBar: { position: "absolute", bottom: 0, left: 0, right: 0, flexDirection: "row", padding: 16, gap: 12, borderTopWidth: 1, elevation: 10, shadowColor: "#000", shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.1, shadowRadius: 8 },
   wishlistBtn: { width: 52, height: 52, borderRadius: 14, borderWidth: 1.5, justifyContent: "center", alignItems: "center" },
   addToCartBtn: { flex: 1, height: 52, borderRadius: 14, justifyContent: "center", alignItems: "center" },
