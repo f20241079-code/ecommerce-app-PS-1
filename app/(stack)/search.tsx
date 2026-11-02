@@ -1,4 +1,5 @@
 import { useTheme } from "@/context/ThemeContext";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import ProductImage from "@/components/ProductImage";
@@ -6,6 +7,7 @@ import { categoryLabel, type Product } from "@/lib/products";
 import { matchesQuery, productParams, useCatalog, useCategories, formatPrice } from "@/lib/productsApi";
 import {
     FlatList,
+    Platform,
     StyleSheet,
     Text,
     TextInput,
@@ -23,6 +25,8 @@ const priceRanges = [
 type PriceRange = (typeof priceRanges)[number];
 
 const MAX_RECENT = 5;
+// Browsers draw a focus ring around inputs; the container already shows focus.
+const webNoOutline = Platform.OS === "web" ? ({ outlineStyle: "none" } as object) : null;
 const MAX_QUICK_TAGS = 10;
 
 export default function Search() {
@@ -32,6 +36,7 @@ export default function Search() {
   const [showFilters, setShowFilters] = useState(false);
   const router = useRouter();
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const { products: allProducts } = useCatalog();
   const { categories } = useCategories();
 
@@ -68,7 +73,7 @@ export default function Search() {
   const showBrowseState = query.length === 0;
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top + 16 }]}>
       <View style={styles.headerRow}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Text style={[styles.backButtonText, { color: colors.primary }]}>←</Text>
@@ -80,7 +85,7 @@ export default function Search() {
         <View style={[styles.searchContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={styles.searchIcon}>🔍</Text>
           <TextInput
-            style={[styles.searchInput, { color: colors.text }]}
+            style={[styles.searchInput, { color: colors.text }, webNoOutline]}
             placeholder="Search products or categories..."
             placeholderTextColor={colors.subtext}
             value={query}
@@ -237,7 +242,7 @@ export default function Search() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 50 },
+  container: { flex: 1 },
   headerRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 20, marginBottom: 16 },
   backButton: { marginRight: 10, padding: 6 },
   backButtonText: { fontSize: 22, fontWeight: "700" },

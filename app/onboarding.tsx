@@ -4,6 +4,8 @@ import { useRef, useState } from "react";
 import {
     Dimensions,
     FlatList,
+    type NativeScrollEvent,
+    type NativeSyntheticEvent,
     StyleSheet,
     Text,
     TouchableOpacity,
@@ -35,7 +37,7 @@ const slides = [
 
 export default function Onboarding() {
   const [activeIndex, setActiveIndex] = useState(0);
-  const listRef = useRef(null);
+  const listRef = useRef<FlatList>(null);
   const router = useRouter();
   const { colors } = useTheme();
 
@@ -51,7 +53,7 @@ export default function Onboarding() {
     }
   };
 
-  const handleScroll = (e) => {
+  const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const index = Math.round(e.nativeEvent.contentOffset.x / width);
     setActiveIndex(index);
   };

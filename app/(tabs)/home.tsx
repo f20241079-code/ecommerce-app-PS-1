@@ -1,4 +1,5 @@
 import React from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   View,
   Text,
@@ -20,9 +21,15 @@ import { useRecommendations } from "@/lib/recommendations";
 
 const PAGE_SIZE = 20;
 
+const greeting = () => {
+  const h = new Date().getHours();
+  return h < 12 ? "Good Morning" : h < 17 ? "Good Afternoon" : "Good Evening";
+};
+
 export default function Home() {
   const router = useRouter();
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const { items: cartItems } = useCart();
   const { items: wishlistItems } = useWishlist();
@@ -93,9 +100,9 @@ export default function Home() {
       showsVerticalScrollIndicator={false}
     >
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.primary }]}>
+      <View style={[styles.header, { backgroundColor: colors.primary, paddingTop: insets.top + 16 }]}>
         <View>
-          <Text style={styles.greeting}>Good Morning 👋</Text>
+          <Text style={styles.greeting}>{greeting()} 👋</Text>
           <Text style={styles.headerTitle}>Find Amazing Deals</Text>
         </View>
         <TouchableOpacity style={styles.notifBtn}>
@@ -168,7 +175,7 @@ export default function Home() {
             <View style={[styles.categoryIconWrap, { backgroundColor: item.color }]}>
               <Text style={styles.categoryIcon}>{item.icon}</Text>
             </View>
-            <Text style={[styles.categoryName, { color: colors.text }]} numberOfLines={1}>
+            <Text style={[styles.categoryName, { color: colors.text }]} numberOfLines={2}>
               {item.name}
             </Text>
           </TouchableOpacity>
@@ -272,7 +279,7 @@ export default function Home() {
 const styles = StyleSheet.create({
   recommendedSection: { paddingLeft: 20, paddingRight: 10, marginBottom: 20 },
   container: { flex: 1 },
-  header: { paddingTop: 50, paddingBottom: 24, paddingHorizontal: 20, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  header: { paddingBottom: 24, paddingHorizontal: 20, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   greeting: { fontSize: 13, color: "rgba(255,255,255,0.8)", marginBottom: 2 },
   headerTitle: { fontSize: 22, fontWeight: "bold", color: "#fff" },
   notifBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: "rgba(255,255,255,0.2)", justifyContent: "center", alignItems: "center" },
@@ -292,10 +299,10 @@ const styles = StyleSheet.create({
   seeAll: { fontSize: 14, fontWeight: "600" },
   productCount: { fontSize: 13 },
   categoriesList: { paddingHorizontal: 20, marginBottom: 20 },
-  categoryItem: { alignItems: "center", marginRight: 14, padding: 12, borderRadius: 16, width: 82 },
+  categoryItem: { alignItems: "center", marginRight: 10, paddingVertical: 12, paddingHorizontal: 6, borderRadius: 16, width: 86, minHeight: 104 },
   categoryIconWrap: { width: 48, height: 48, borderRadius: 14, justifyContent: "center", alignItems: "center", marginBottom: 6 },
   categoryIcon: { fontSize: 24 },
-  categoryName: { fontSize: 11, fontWeight: "600", textAlign: "center" },
+  categoryName: { fontSize: 11, fontWeight: "600", textAlign: "center", lineHeight: 14 },
   featuredList: { paddingHorizontal: 20, marginBottom: 20 },
   featuredCard: { width: 155, borderRadius: 16, padding: 12, marginRight: 12, borderWidth: 1, elevation: 2, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4 },
   badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, alignSelf: "flex-start", marginBottom: 6 },

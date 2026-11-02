@@ -99,7 +99,7 @@ export default function Login() {
     }
   };
 
-  const handleSocialLogin = (provider) => {
+  const handleSocialLogin = (provider: string) => {
     // TODO: wire up supabase.auth.signInWithOAuth({ provider })
     Alert.alert("Coming soon", `${provider} login isn't wired up yet.`);
   };

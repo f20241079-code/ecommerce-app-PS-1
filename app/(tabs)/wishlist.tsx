@@ -1,4 +1,5 @@
 import { useCart } from "@/context/CartContext";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/context/ThemeContext";
 import { useWishlist } from "@/context/WishlistContext";
 import ProductImage from "@/components/ProductImage";
@@ -13,6 +14,7 @@ import {
 
 export default function Wishlist() {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const { addToCart } = useCart();
   const { items, removeFromWishlist } = useWishlist();
   const router = useRouter();
@@ -33,7 +35,7 @@ export default function Wishlist() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top + 16 }]}>
       <Text style={[styles.title, { color: colors.text }]}>My Wishlist ❤️</Text>
       <FlatList
         data={items}
@@ -59,7 +61,7 @@ export default function Wishlist() {
             <View style={styles.info}>
               <Text style={[styles.name, { color: colors.text }]}>{item.name}</Text>
               <Text style={[styles.rating, { color: colors.subtext }]}>⭐ {item.rating}</Text>
-              <Text style={[styles.price, { color: colors.primary }]}>${item.price}</Text>
+              <Text style={[styles.price, { color: colors.primary }]}>${item.price.toFixed(2)}</Text>
             </View>
             <View style={styles.actions}>
               <TouchableOpacity
@@ -91,7 +93,7 @@ export default function Wishlist() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 50 },
+  container: { flex: 1 },
   emptyContainer: { flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 20 },
   emptyCard: { width: "100%", borderRadius: 24, borderWidth: 1, padding: 24, alignItems: "center" },
   emptyIcon: { fontSize: 70, marginBottom: 12 },

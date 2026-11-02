@@ -10,16 +10,19 @@ export default function StackLayout() {
         headerStyle: { backgroundColor: colors.card },
         headerTintColor: colors.text,
         headerShadowVisible: false,
+        headerBackTitle: "Back",
+        contentStyle: { backgroundColor: colors.background },
       }}
     >
-      <Stack.Screen name="product-detail" options={{ title: "Product Detail" }} />
-      <Stack.Screen name="checkout" options={{ title: "Checkout" }} />
+      <Stack.Screen name="product-detail" options={{ title: "Product Details" }} />
+      {/* These screens draw their own header with a back button. */}
+      <Stack.Screen name="checkout" options={{ headerShown: false }} />
       <Stack.Screen name="search" options={{ headerShown: false }} />
-      <Stack.Screen name="order-history" options={{ title: "Order History" }} />
-      <Stack.Screen name="addresses" options={{ title: "Addresses" }} />
+      <Stack.Screen name="order-history" options={{ title: "Order History 📦" }} />
+      <Stack.Screen name="addresses" options={{ title: "My Addresses 📍" }} />
       <Stack.Screen name="edit-profile" options={{ title: "Edit Profile" }} />
-      <Stack.Screen name="settings" options={{ title: "Settings" }} />
-      <Stack.Screen name="category" options={{ title: "Category" }} />
+      <Stack.Screen name="settings" options={{ headerShown: false }} />
+      <Stack.Screen name="category" options={{ headerShown: false }} />
     </Stack>
   );
 }

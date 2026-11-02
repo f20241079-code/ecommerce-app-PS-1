@@ -17,7 +17,6 @@ export default function Addresses() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}> 
-      <Text style={[styles.title, { color: colors.text }]}>My Addresses 📍</Text>
 
       <FlatList
         data={addresses}
@@ -55,7 +54,7 @@ export default function Addresses() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 50 },
+  container: { flex: 1, paddingTop: 8 },
   title: { fontSize: 24, fontWeight: "bold", paddingHorizontal: 20, marginBottom: 20 },
   list: { paddingHorizontal: 20 },
   card: { borderRadius: 12, padding: 16, marginBottom: 16, borderWidth: 1 },

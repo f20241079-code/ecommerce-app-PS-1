@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   View,
   Text,
@@ -21,6 +22,7 @@ export default function Category() {
   const { name } = useLocalSearchParams();
   const router = useRouter();
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const { addToCart } = useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   const [sortBy, setSortBy] = useState<SortOption>("default");
@@ -44,7 +46,7 @@ export default function Category() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.primary }]}>
+      <View style={[styles.header, { backgroundColor: colors.primary, paddingTop: insets.top + 16 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
@@ -183,7 +185,7 @@ export default function Category() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { paddingTop: 50, paddingBottom: 16, paddingHorizontal: 20, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  header: { paddingBottom: 16, paddingHorizontal: 20, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.2)", justifyContent: "center", alignItems: "center" },
   backText: { color: "#fff", fontSize: 18, fontWeight: "bold" },
   headerTitle: { fontSize: 20, fontWeight: "bold", color: "#fff", flex: 1, textAlign: "center" },

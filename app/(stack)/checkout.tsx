@@ -1,4 +1,5 @@
 import { useCart } from "@/context/CartContext";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/context/ThemeContext";
 import ProductImage from "@/components/ProductImage";
 import { sendLocalNotification } from "@/lib/notifications";
@@ -24,17 +25,20 @@ const paymentMethods = [
 export default function Checkout() {
   const router = useRouter();
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const { items, total, clearCart } = useCart();
   const [stepIndex, setStepIndex] = useState(0);
   const [selectedPayment, setSelectedPayment] = useState("card");
 
-  const delivery = 5;
+  // Same rule as the cart: free delivery from $50.
+  const delivery = total >= 50 ? 0 : 5;
   const grandTotal = total + delivery;
+  const money = (n: number) => n.toFixed(2);
 
   const handlePlaceOrder = async () => {
     await sendLocalNotification(
       "Order Placed! 🎉",
-      `Your order of $${grandTotal} has been placed successfully!`
+      `Your order of $${money(grandTotal)} has been placed successfully!`
     );
     Alert.alert(
       "Order Placed! 🎉",
@@ -64,8 +68,24 @@ export default function Checkout() {
     else router.back();
   };
 
+  if (items.length === 0) {
+    return (
+      <View style={[styles.container, styles.emptyState, { backgroundColor: colors.background }]}>
+        <Text style={styles.emptyIcon}>🛒</Text>
+        <Text style={[styles.emptyTitle, { color: colors.text }]}>Nothing to check out</Text>
+        <Text style={[styles.emptySubtitle, { color: colors.subtext }]}>Add some products to your cart first.</Text>
+        <TouchableOpacity
+          style={[styles.emptyBtn, { backgroundColor: colors.primary }]}
+          onPress={() => router.replace("/(tabs)/home")}
+        >
+          <Text style={styles.emptyBtnText}>Browse Products</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top + 16 }]}>
       <View style={styles.headerRow}>
         <TouchableOpacity style={styles.backButton} onPress={goBack}>
           <Text style={[styles.backButtonText, { color: colors.primary }]}>←</Text>
@@ -126,7 +146,7 @@ export default function Checkout() {
                   <Text style={[styles.itemName, { color: colors.text }]}>{item.name}</Text>
                   <Text style={[styles.itemQty, { color: colors.subtext }]}>Qty: {item.quantity}</Text>
                 </View>
-                <Text style={[styles.itemPrice, { color: colors.primary }]}>${item.price * item.quantity}</Text>
+                <Text style={[styles.itemPrice, { color: colors.primary }]}>${money(item.price * item.quantity)}</Text>
               </View>
             ))}
           </View>
@@ -204,16 +224,16 @@ export default function Checkout() {
           <View style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.summaryRow}>
               <Text style={[styles.summaryLabel, { color: colors.subtext }]}>Subtotal</Text>
-              <Text style={[styles.summaryValue, { color: colors.text }]}>${total}</Text>
+              <Text style={[styles.summaryValue, { color: colors.text }]}>${money(total)}</Text>
             </View>
             <View style={styles.summaryRow}>
               <Text style={[styles.summaryLabel, { color: colors.subtext }]}>Delivery</Text>
-              <Text style={[styles.summaryValue, { color: colors.text }]}>${delivery}</Text>
+              <Text style={[styles.summaryValue, { color: colors.text }]}>{delivery === 0 ? "FREE" : `$${money(delivery)}`}</Text>
             </View>
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
             <View style={styles.summaryRow}>
               <Text style={[styles.totalLabel, { color: colors.text }]}>Total</Text>
-              <Text style={[styles.totalValue, { color: colors.primary }]}>${grandTotal}</Text>
+              <Text style={[styles.totalValue, { color: colors.primary }]}>${money(grandTotal)}</Text>
             </View>
           </View>
         </View>
@@ -222,7 +242,7 @@ export default function Checkout() {
       <View style={[styles.footer, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <View>
           <Text style={[styles.footerLabel, { color: colors.subtext }]}>Total</Text>
-          <Text style={[styles.footerTotal, { color: colors.text }]}>${grandTotal}</Text>
+          <Text style={[styles.footerTotal, { color: colors.text }]}>${money(grandTotal)}</Text>
         </View>
         <TouchableOpacity style={[styles.nextBtn, { backgroundColor: colors.primary }]} onPress={goNext}>
           <Text style={styles.nextBtnText}>
@@ -235,7 +255,13 @@ export default function Checkout() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 50 },
+  container: { flex: 1 },
+  emptyState: { justifyContent: "center", alignItems: "center", padding: 40 },
+  emptyIcon: { fontSize: 60, marginBottom: 12 },
+  emptyTitle: { fontSize: 20, fontWeight: "bold", marginBottom: 6 },
+  emptySubtitle: { fontSize: 14, marginBottom: 24, textAlign: "center" },
+  emptyBtn: { paddingHorizontal: 28, paddingVertical: 14, borderRadius: 14 },
+  emptyBtnText: { color: "#fff", fontSize: 15, fontWeight: "bold" },
   headerRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 20, marginBottom: 16 },
   backButton: { marginRight: 10, padding: 6 },
   backButtonText: { fontSize: 22, fontWeight: "700" },

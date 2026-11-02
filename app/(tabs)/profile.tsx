@@ -1,4 +1,5 @@
 import { useTheme } from "@/context/ThemeContext";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
@@ -15,6 +16,7 @@ import {
 export default function Profile() {
   const router = useRouter();
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const [user, setUser] = useState<any>(null);
 
   const menuItems = [
@@ -62,7 +64,7 @@ export default function Profile() {
       showsVerticalScrollIndicator={false}
     >
       {/* Header Banner */}
-      <View style={[styles.headerBanner, { backgroundColor: colors.primary }]}>
+      <View style={[styles.headerBanner, { backgroundColor: colors.primary, paddingTop: insets.top + 20 }]}>
         <Text style={styles.headerTitle}>My Profile</Text>
         <TouchableOpacity
           style={styles.editHeaderBtn}
@@ -166,7 +168,7 @@ export default function Profile() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  headerBanner: { paddingTop: 54, paddingBottom: 60, paddingHorizontal: 20, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  headerBanner: { paddingBottom: 60, paddingHorizontal: 20, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   headerTitle: { fontSize: 22, fontWeight: "bold", color: "#fff" },
   editHeaderBtn: { backgroundColor: "rgba(255,255,255,0.2)", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20 },
   editHeaderText: { color: "#fff", fontSize: 13, fontWeight: "600" },

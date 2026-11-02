@@ -25,7 +25,6 @@ export default function OrderHistory() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}> 
       <View style={styles.header}> 
-        <Text style={[styles.title, { color: colors.text }]}>Order History 📦</Text>
         <Text style={[styles.subtitle, { color: colors.subtext }]}>A quick view of your recent purchases</Text>
       </View>
       <FlatList
@@ -59,7 +58,7 @@ export default function OrderHistory() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 50 },
+  container: { flex: 1, paddingTop: 8 },
   header: { paddingHorizontal: 20, marginBottom: 16 },
   title: { fontSize: 24, fontWeight: "700", marginBottom: 4 },
   subtitle: { fontSize: 13 },

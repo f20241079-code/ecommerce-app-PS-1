@@ -1,4 +1,5 @@
 import { useTheme } from "@/context/ThemeContext";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { sendLocalNotification } from "@/lib/notifications";
 import { router } from "expo-router";
 import { useState } from "react";
@@ -14,6 +15,7 @@ import {
 
 export default function Settings() {
   const { colors, theme, toggleTheme } = useTheme();
+  const insets = useSafeAreaInsets();
   const [notifications, setNotifications] = useState(true);
   const [emailUpdates, setEmailUpdates] = useState(true);
   const [orderUpdates, setOrderUpdates] = useState(true);
@@ -75,7 +77,7 @@ export default function Settings() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}> 
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top + 16 }]}>
       <View style={styles.headerRow}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton} activeOpacity={0.8}>
           <Text style={[styles.backButtonText, { color: colors.primary }]}>← Back</Text>
@@ -194,7 +196,7 @@ export default function Settings() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 50 },
+  container: { flex: 1 },
   headerRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 20, marginBottom: 20 },
   backButton: { marginRight: 12 },
   backButtonText: { fontSize: 16, fontWeight: "600" },

@@ -1,8 +1,17 @@
 import { useTheme } from "@/context/ThemeContext";
 import { Tabs } from "expo-router";
+import { Text } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useCart } from "@/context/CartContext";
+import { useWishlist } from "@/context/WishlistContext";
 
 export default function TabsLayout() {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  // Leave room for the iPhone home indicator / Android gesture bar.
+  const bottomPad = Math.max(insets.bottom, 8);
+  const { count: cartCount } = useCart();
+  const { count: wishlistCount } = useWishlist();
 
   return (
     <Tabs
@@ -10,33 +19,30 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.subtext,
+        tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
         tabBarStyle: {
           backgroundColor: colors.card,
           borderTopColor: colors.border,
-          paddingBottom: 8,
-          paddingTop: 8,
-          height: 66,
-          borderTopLeftRadius: 20,
-          borderTopRightRadius: 20,
-          position: "absolute",
-          left: 0,
-          right: 0,
-          bottom: 0,
-          elevation: 6,
+          borderTopWidth: 1,
+          height: 58 + bottomPad,
+          paddingTop: 6,
+          paddingBottom: bottomPad,
+          elevation: 8,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.06,
+          shadowRadius: 8,
         },
-        tabBarItemStyle: {
-          borderRadius: 16,
-          marginHorizontal: 6,
-          paddingVertical: 4,
-        },
+        tabBarBadgeStyle: { backgroundColor: colors.primary, color: "#fff", fontSize: 10 },
+        sceneStyle: { backgroundColor: colors.background },
       }}
     >
       <Tabs.Screen
         name="home"
         options={{
           title: "Home",
-          tabBarIcon: ({ color }) => (
-            <TabIcon name="🏠" color={color} />
+          tabBarIcon: ({ focused }) => (
+            <TabIcon name="🏠" focused={focused} />
           ),
         }}
       />
@@ -44,8 +50,9 @@ export default function TabsLayout() {
         name="cart"
         options={{
           title: "Cart",
-          tabBarIcon: ({ color }) => (
-            <TabIcon name="🛒" color={color} />
+          tabBarBadge: cartCount > 0 ? cartCount : undefined,
+          tabBarIcon: ({ focused }) => (
+            <TabIcon name="🛒" focused={focused} />
           ),
         }}
       />
@@ -53,8 +60,9 @@ export default function TabsLayout() {
         name="wishlist"
         options={{
           title: "Wishlist",
-          tabBarIcon: ({ color }) => (
-            <TabIcon name="❤️" color={color} />
+          tabBarBadge: wishlistCount > 0 ? wishlistCount : undefined,
+          tabBarIcon: ({ focused }) => (
+            <TabIcon name="❤️" focused={focused} />
           ),
         }}
       />
@@ -62,8 +70,8 @@ export default function TabsLayout() {
         name="profile"
         options={{
           title: "Profile",
-          tabBarIcon: ({ color }) => (
-            <TabIcon name="👤" color={color} />
+          tabBarIcon: ({ focused }) => (
+            <TabIcon name="👤" focused={focused} />
           ),
         }}
       />
@@ -71,7 +79,9 @@ export default function TabsLayout() {
   );
 }
 
-function TabIcon({ name, color }: { name: string; color?: string }) {
-  const { Text } = require("react-native");
-  return <Text style={{ fontSize: 22, color: color ?? "#FF6B00" }}>{name}</Text>;
+function TabIcon({ name, focused }: { name: string; focused: boolean }) {
+  // Emoji ignore tint colour, so show the selected tab with size + opacity.
+  return (
+    <Text style={{ fontSize: focused ? 24 : 21, opacity: focused ? 1 : 0.55 }}>{name}</Text>
+  );
 }
