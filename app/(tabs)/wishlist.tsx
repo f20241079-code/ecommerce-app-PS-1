@@ -1,6 +1,7 @@
 import { useCart } from "@/context/CartContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useWishlist } from "@/context/WishlistContext";
+import ProductImage from "@/components/ProductImage";
 import { useRouter } from "expo-router";
 import {
     FlatList,
@@ -54,7 +55,7 @@ export default function Wishlist() {
               })
             }
           >
-            <Text style={styles.icon}>{item.icon}</Text>
+            <ProductImage uri={item.image} icon={item.icon} size={52} style={styles.icon} />
             <View style={styles.info}>
               <Text style={[styles.name, { color: colors.text }]}>{item.name}</Text>
               <Text style={[styles.rating, { color: colors.subtext }]}>⭐ {item.rating}</Text>
@@ -69,6 +70,7 @@ export default function Wishlist() {
                     name: item.name,
                     price: item.price,
                     icon: item.icon,
+                    image: item.image,
                   })
                 }
               >
@@ -100,7 +102,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 24, fontWeight: "bold", paddingHorizontal: 20, marginBottom: 20 },
   list: { paddingHorizontal: 20, paddingBottom: 20 },
   card: { flexDirection: "row", alignItems: "center", borderRadius: 16, padding: 14, marginBottom: 12, borderWidth: 1 },
-  icon: { fontSize: 40, marginRight: 12 },
+  icon: { marginRight: 12 },
   info: { flex: 1 },
   name: { fontSize: 15, fontWeight: "bold", marginBottom: 4 },
   rating: { fontSize: 12, marginBottom: 4 },

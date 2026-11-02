@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -13,7 +13,9 @@ import { useTheme } from "@/context/ThemeContext";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
 import RecommendedProducts from "@/components/RecommendedProducts";
-import { findProduct } from "@/lib/products";
+import ProductImage from "@/components/ProductImage";
+import { categoryLabel, findProduct } from "@/lib/products";
+import { formatPrice, useCatalog, useProductReviews } from "@/lib/productsApi";
 import { useSimilarProducts } from "@/lib/recommendations";
 
 const { width } = Dimensions.get("window");
@@ -27,19 +29,47 @@ const productDescriptions: { [key: string]: string } = {
 };
 
 export default function ProductDetail() {
-  const { name, price, rating, icon, id, originalPrice, reviews, badge, description } = useLocalSearchParams();
+  const params = useLocalSearchParams<{
+    id?: string; name?: string; price?: string; originalPrice?: string; rating?: string;
+    reviews?: string; icon?: string; badge?: string; description?: string;
+  }>();
   const router = useRouter();
   const { colors } = useTheme();
   const { addToCart } = useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   const [quantity, setQuantity] = useState(1);
   const [selectedColor, setSelectedColor] = useState(0);
-  const catalogProduct = findProduct(id as string, name as string);
+  const [imageIndex, setImageIndex] = useState(0);
+
+  // Prefer the live catalog record; fall back to whatever the caller passed.
+  const { version } = useCatalog();
+  const catalogProduct = useMemo(
+    () => findProduct(params.id, params.name),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [params.id, params.name, version]
+  );
+  const id = catalogProduct?.id ?? String(params.id ?? "");
+  const name = catalogProduct?.name ?? String(params.name ?? "");
+  const price = catalogProduct?.price ?? Number(params.price ?? 0);
+  const originalPrice = catalogProduct?.originalPrice ?? (params.originalPrice ? Number(params.originalPrice) : undefined);
+  const rating = catalogProduct?.rating ?? Number(params.rating ?? 0);
+  const reviews = catalogProduct?.reviews ?? (params.reviews ? Number(params.reviews) : undefined);
+  const icon = catalogProduct?.icon ?? String(params.icon ?? "🛍️");
+  const badge = catalogProduct?.badge || params.badge || "";
+  const description = catalogProduct?.description || params.description || "";
+  const images = catalogProduct?.images?.length
+    ? catalogProduct.images
+    : catalogProduct?.thumbnail
+      ? [catalogProduct.thumbnail]
+      : [];
+
   const similar = useSimilarProducts(catalogProduct?.id);
+  const { reviews: reviewList } = useProductReviews(catalogProduct?.id);
+  const imageSize = Math.min(width - 140, 280);
 
   const inWishlist = isInWishlist(id as string);
-  const discount = originalPrice ? Math.round(((Number(originalPrice) - Number(price)) / Number(originalPrice)) * 100) : 0;
-  const productDesc = description as string || productDescriptions[name as string] || catalogProduct?.description || "Premium quality product with excellent features and durability. Perfect for everyday use and comes with a 1 year warranty and free returns within 30 days.";
+  const discount = originalPrice && originalPrice > price ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
+  const productDesc = description || productDescriptions[name] || "Premium quality product with excellent features and durability. Perfect for everyday use and comes with a 1 year warranty and free returns within 30 days.";
 
   const colors_list = ["⚫", "⚪", "🔵", "🔴"];
 
@@ -50,6 +80,7 @@ export default function ProductDetail() {
         name: name as string,
         price: Number(price),
         icon: icon as string,
+        image: catalogProduct?.thumbnail,
       });
     }
     Alert.alert("Added to Cart! 🛒", `${quantity}x ${name} added to your cart`, [
@@ -68,6 +99,7 @@ export default function ProductDetail() {
         price: Number(price),
         rating: Number(rating),
         icon: icon as string,
+        image: catalogProduct?.thumbnail,
       });
     }
   };
@@ -78,7 +110,7 @@ export default function ProductDetail() {
 
         {/* Product Image Area */}
         <View style={[styles.imageSection, { backgroundColor: colors.card }]}>
-          {badge && (
+          {!!badge && (
             <View style={[styles.badgeTop, { backgroundColor: colors.primary }]}>
               <Text style={styles.badgeText}>{badge as string}</Text>
             </View>
@@ -86,7 +118,35 @@ export default function ProductDetail() {
           <TouchableOpacity style={styles.wishlistTop} onPress={handleWishlist}>
             <Text style={{ fontSize: 28 }}>{inWishlist ? "❤️" : "🤍"}</Text>
           </TouchableOpacity>
-          <Text style={styles.productIcon}>{icon}</Text>
+          {images.length > 0 ? (
+            <View style={{ alignItems: "center" }}>
+              <ScrollView
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                style={{ width: imageSize }}
+                onMomentumScrollEnd={(e) =>
+                  setImageIndex(Math.round(e.nativeEvent.contentOffset.x / imageSize))
+                }
+              >
+                {images.map((uri) => (
+                  <ProductImage key={uri} uri={uri} icon={icon} size={imageSize} />
+                ))}
+              </ScrollView>
+              {images.length > 1 && (
+                <View style={styles.dotsRow}>
+                  {images.map((uri, i) => (
+                    <View
+                      key={uri}
+                      style={[styles.dot, { backgroundColor: i === imageIndex ? colors.primary : colors.border }]}
+                    />
+                  ))}
+                </View>
+              )}
+            </View>
+          ) : (
+            <Text style={styles.productIcon}>{icon}</Text>
+          )}
           {discount > 0 && (
             <View style={[styles.discountBadge, { backgroundColor: "#43E97B" }]}>
               <Text style={styles.discountText}>{discount}% OFF</Text>
@@ -96,27 +156,51 @@ export default function ProductDetail() {
 
         {/* Product Info */}
         <View style={[styles.infoCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          {/* Name & Rating */}
+          {/* Brand, Name & Rating */}
+          {(catalogProduct?.brand || catalogProduct?.category) && (
+            <Text style={[styles.brand, { color: colors.primary }]}>
+              {[catalogProduct?.brand, catalogProduct && categoryLabel(catalogProduct.category)]
+                .filter(Boolean)
+                .join(" · ")}
+            </Text>
+          )}
           <Text style={[styles.name, { color: colors.text }]}>{name}</Text>
           <View style={styles.ratingRow}>
-            <Text style={styles.stars}>⭐⭐⭐⭐⭐</Text>
+            <Text style={styles.stars}>{"⭐".repeat(Math.max(1, Math.round(rating)))}</Text>
             <Text style={[styles.ratingText, { color: colors.subtext }]}>
-              {rating} ({reviews ? Number(reviews).toLocaleString() : "1,234"} reviews)
+              {rating}
+              {reviews !== undefined ? ` (${reviews.toLocaleString()} review${reviews === 1 ? "" : "s"})` : ""}
             </Text>
           </View>
 
           {/* Price */}
           <View style={styles.priceRow}>
-            <Text style={[styles.price, { color: colors.primary }]}>${price}</Text>
+            <Text style={[styles.price, { color: colors.primary }]}>${formatPrice(price)}</Text>
             {originalPrice && Number(originalPrice) > Number(price) && (
-              <Text style={[styles.originalPrice, { color: colors.subtext }]}>${originalPrice}</Text>
+              <Text style={[styles.originalPrice, { color: colors.subtext }]}>${formatPrice(originalPrice)}</Text>
             )}
             {discount > 0 && (
               <View style={[styles.saveBadge, { backgroundColor: colors.primary + "20" }]}>
-                <Text style={[styles.saveText, { color: colors.primary }]}>Save ${Number(originalPrice) - Number(price)}</Text>
+                <Text style={[styles.saveText, { color: colors.primary }]}>
+                  Save ${formatPrice(Math.round((Number(originalPrice) - price) * 100) / 100)}
+                </Text>
               </View>
             )}
           </View>
+          {typeof catalogProduct?.stock === "number" && (
+            <Text
+              style={[
+                styles.stock,
+                { color: catalogProduct.stock === 0 ? colors.error : catalogProduct.stock < 10 ? "#FFB800" : "#43E97B" },
+              ]}
+            >
+              {catalogProduct.stock === 0
+                ? "Out of stock"
+                : catalogProduct.stock < 10
+                  ? `Only ${catalogProduct.stock} left in stock`
+                  : "In stock"}
+            </Text>
+          )}
         </View>
 
         {/* Color Selection */}
@@ -156,7 +240,7 @@ export default function ProductDetail() {
               <Text style={styles.qtyBtnText}>+</Text>
             </TouchableOpacity>
             <Text style={[styles.qtyTotal, { color: colors.subtext }]}>
-              Total: <Text style={{ color: colors.primary, fontWeight: "bold" }}>${(Number(price) * quantity).toLocaleString()}</Text>
+              Total: <Text style={{ color: colors.primary, fontWeight: "bold" }}>${formatPrice(Math.round(price * quantity * 100) / 100)}</Text>
             </Text>
           </View>
         </View>
@@ -167,19 +251,53 @@ export default function ProductDetail() {
           <Text style={[styles.description, { color: colors.subtext }]}>{productDesc}</Text>
         </View>
 
-        {/* Features */}
+        {/* Features / product details */}
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Features</Text>
-          {[
-            "✅ Free delivery on orders above $50",
-            "✅ 30-day easy returns",
-            "✅ 1 year warranty included",
-            "✅ Authentic product guaranteed",
-            "✅ 24/7 customer support",
-          ].map((feature, index) => (
-            <Text key={index} style={[styles.feature, { color: colors.subtext }]}>{feature}</Text>
-          ))}
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            {catalogProduct?.shipping ? "Details" : "Features"}
+          </Text>
+          {(catalogProduct?.shipping
+            ? [
+                catalogProduct.availabilityStatus && `📦 ${catalogProduct.availabilityStatus}`,
+                `🚚 ${catalogProduct.shipping}`,
+                catalogProduct.warranty && `🛡️ ${catalogProduct.warranty}`,
+                catalogProduct.returnPolicy && `↩️ ${catalogProduct.returnPolicy}`,
+              ]
+            : [
+                "✅ Free delivery on orders above $50",
+                "✅ 30-day easy returns",
+                "✅ 1 year warranty included",
+                "✅ Authentic product guaranteed",
+                "✅ 24/7 customer support",
+              ]
+          )
+            .filter(Boolean)
+            .map((feature, index) => (
+              <Text key={index} style={[styles.feature, { color: colors.subtext }]}>{feature}</Text>
+            ))}
         </View>
+
+        {/* Customer reviews */}
+        {reviewList.length > 0 && (
+          <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Customer Reviews</Text>
+            {reviewList.map((r, i) => (
+              <View
+                key={r.id}
+                style={[styles.review, i > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}
+              >
+                <View style={styles.reviewHeader}>
+                  <Text style={[styles.reviewName, { color: colors.text }]}>{r.reviewerName}</Text>
+                  <Text style={styles.reviewStars}>{"⭐".repeat(r.rating)}</Text>
+                </View>
+                <Text style={[styles.reviewComment, { color: colors.subtext }]}>{r.comment}</Text>
+                <Text style={[styles.reviewDate, { color: colors.subtext }]}>
+                  {new Date(r.createdAt).toLocaleDateString()}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
 
         {/* Related Products (ML recommendations) */}
         <RecommendedProducts
@@ -203,7 +321,7 @@ export default function ProductDetail() {
           style={[styles.addToCartBtn, { backgroundColor: colors.primary }]}
           onPress={handleAddToCart}
         >
-          <Text style={styles.addToCartText}>🛒 Add to Cart — ${(Number(price) * quantity).toLocaleString()}</Text>
+          <Text style={styles.addToCartText}>🛒 Add to Cart — ${formatPrice(Math.round(price * quantity * 100) / 100)}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -240,6 +358,16 @@ const styles = StyleSheet.create({
   qtyTotal: { fontSize: 14, marginLeft: 8 },
   description: { fontSize: 14, lineHeight: 22 },
   feature: { fontSize: 13, marginBottom: 6, lineHeight: 20 },
+  brand: { fontSize: 12, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 },
+  stock: { fontSize: 13, fontWeight: "600", marginTop: 10 },
+  dotsRow: { flexDirection: "row", gap: 6, marginTop: 12 },
+  dot: { width: 7, height: 7, borderRadius: 4 },
+  review: { paddingVertical: 10 },
+  reviewHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 },
+  reviewName: { fontSize: 14, fontWeight: "bold" },
+  reviewStars: { fontSize: 11 },
+  reviewComment: { fontSize: 13, lineHeight: 19 },
+  reviewDate: { fontSize: 11, marginTop: 4 },
   relatedSection: { marginHorizontal: 16, marginBottom: 12 },
   bottomBar: { position: "absolute", bottom: 0, left: 0, right: 0, flexDirection: "row", padding: 16, gap: 12, borderTopWidth: 1, elevation: 10, shadowColor: "#000", shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.1, shadowRadius: 8 },
   wishlistBtn: { width: 52, height: 52, borderRadius: 14, borderWidth: 1.5, justifyContent: "center", alignItems: "center" },

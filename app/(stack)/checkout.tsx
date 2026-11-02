@@ -1,5 +1,6 @@
 import { useCart } from "@/context/CartContext";
 import { useTheme } from "@/context/ThemeContext";
+import ProductImage from "@/components/ProductImage";
 import { sendLocalNotification } from "@/lib/notifications";
 import { useRouter } from "expo-router";
 import { useState } from "react";
@@ -119,7 +120,7 @@ export default function Checkout() {
             {items.map((item) => (
               <View key={item.id} style={[styles.itemCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <View style={[styles.itemIconWrap, { backgroundColor: colors.background }]}>
-                  <Text style={{ fontSize: 24 }}>{item.icon}</Text>
+                  <ProductImage uri={item.image} icon={item.icon} size={34} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.itemName, { color: colors.text }]}>{item.name}</Text>

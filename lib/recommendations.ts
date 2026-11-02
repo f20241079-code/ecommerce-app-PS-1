@@ -16,7 +16,14 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { PRODUCTS, getProductById, productText, type Product } from "@/lib/products";
+import { fromRow, useCatalog, type ProductRow } from "@/lib/productsApi";
+import {
+  getCatalog,
+  getCatalogVersion,
+  getProductById,
+  productText,
+  type Product,
+} from "@/lib/products";
 
 export type RecommendationSource = "ml" | "local";
 
@@ -28,35 +35,6 @@ export type RecommendationResult = {
 // ---------------------------------------------------------------------------
 // Remote (pgvector) path
 // ---------------------------------------------------------------------------
-
-type ProductRow = {
-  id: string;
-  name: string;
-  price: number;
-  original_price: number;
-  rating: number;
-  reviews: number;
-  icon: string;
-  category: string;
-  badge: string | null;
-  description: string;
-  tags: string[] | null;
-  similarity: number;
-};
-
-const fromRow = (r: ProductRow): Product => ({
-  id: r.id,
-  name: r.name,
-  price: Number(r.price),
-  originalPrice: Number(r.original_price),
-  rating: Number(r.rating),
-  reviews: r.reviews,
-  icon: r.icon,
-  category: r.category,
-  badge: r.badge ?? "",
-  description: r.description,
-  tags: r.tags ?? [],
-});
 
 // Once the backend fails (e.g. migration not applied), stop retrying for this
 // app session so every screen doesn't pay for a failing network round-trip.
@@ -106,6 +84,7 @@ function buildIndex(products: Product[]) {
       ...tokenize(p.name),
       ...tokenize(p.category),
       ...tokenize(p.category),
+      ...tokenize(p.brand ?? ""),
       ...p.tags.flatMap(tokenize),
     ];
     const tf: SparseVec = new Map();
@@ -134,7 +113,15 @@ function buildIndex(products: Product[]) {
 }
 
 let localIndex: Map<string, SparseVec> | null = null;
-const getIndex = () => (localIndex ??= buildIndex(PRODUCTS));
+let localIndexVersion = -1;
+const getIndex = () => {
+  // Rebuild when the catalog is replaced (bundled -> live data).
+  if (!localIndex || localIndexVersion !== getCatalogVersion()) {
+    localIndex = buildIndex(getCatalog());
+    localIndexVersion = getCatalogVersion();
+  }
+  return localIndex;
+};
 
 const dot = (a: SparseVec, b: SparseVec) => {
   const [small, big] = a.size < b.size ? [a, b] : [b, a];
@@ -149,7 +136,8 @@ const priceAffinity = (a: number, b: number) =>
 
 function rankLocal(query: SparseVec, refPrice: number, exclude: Set<string>, k: number): Product[] {
   const index = getIndex();
-  return PRODUCTS.filter((p) => !exclude.has(p.id))
+  return getCatalog()
+    .filter((p) => !exclude.has(p.id))
     .map((p) => ({
       p,
       score: 0.9 * dot(query, index.get(p.id)!) + 0.1 * priceAffinity(refPrice, p.price),
@@ -184,7 +172,8 @@ export function localRecommendations(seedIds: string[], k = 6): Product[] {
  * the best product of each category in turn so one category can't dominate.
  */
 export function popularProducts(k = 6, exclude: Set<string> = new Set()): Product[] {
-  const ranked = PRODUCTS.filter((p) => !exclude.has(p.id))
+  const ranked = getCatalog()
+    .filter((p) => !exclude.has(p.id))
     .map((p) => ({ p, score: p.rating * Math.log10(10 + p.reviews) }))
     .sort((a, b) => b.score - a.score)
     .map((x) => x.p);
@@ -225,6 +214,7 @@ export async function getRecommendations(seedIds: string[], k = 6): Promise<Reco
 /** React hook: products similar to the one being viewed. */
 export function useSimilarProducts(productId: string | undefined, k = 6) {
   const [result, setResult] = useState<RecommendationResult | null>(null);
+  const { source } = useCatalog();
 
   useEffect(() => {
     if (!productId) {
@@ -240,7 +230,7 @@ export function useSimilarProducts(productId: string | undefined, k = 6) {
     return () => {
       cancelled = true;
     };
-  }, [productId, k]);
+  }, [productId, k, source]);
 
   return result;
 }
@@ -250,6 +240,7 @@ export function useRecommendations(seedIds: string[], k = 6) {
   // Stable key so a new array with the same ids doesn't refetch.
   const key = useMemo(() => [...new Set(seedIds)].sort().join(","), [seedIds]);
   const [result, setResult] = useState<RecommendationResult | null>(null);
+  const { source } = useCatalog();
 
   useEffect(() => {
     const seeds = key ? key.split(",") : [];
@@ -261,7 +252,7 @@ export function useRecommendations(seedIds: string[], k = 6) {
     return () => {
       cancelled = true;
     };
-  }, [key, k]);
+  }, [key, k, source]);
 
   return result;
 }

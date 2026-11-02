@@ -10,6 +10,7 @@ import {
 import { useRouter } from "expo-router";
 import { useTheme } from "@/context/ThemeContext";
 import { useCart } from "@/context/CartContext";
+import ProductImage from "@/components/ProductImage";
 
 const { width } = Dimensions.get("window");
 
@@ -88,7 +89,7 @@ export default function Cart() {
           <View style={[styles.cartItem, { backgroundColor: colors.card, borderColor: colors.border }]}>
             {/* Product Icon */}
             <View style={[styles.iconWrap, { backgroundColor: colors.background }]}>
-              <Text style={styles.itemIcon}>{item.icon}</Text>
+              <ProductImage uri={item.image} icon={item.icon} size={52} style={styles.itemIcon} />
             </View>
 
             {/* Product Info */}
@@ -203,7 +204,7 @@ const styles = StyleSheet.create({
   deliveryText: { fontSize: 13, fontWeight: "600" },
   cartItem: { flexDirection: "row", borderRadius: 16, padding: 12, marginBottom: 12, borderWidth: 1, elevation: 2, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4 },
   iconWrap: { width: 70, height: 70, borderRadius: 14, justifyContent: "center", alignItems: "center", marginRight: 12 },
-  itemIcon: { fontSize: 40 },
+  itemIcon: {},
   itemInfo: { flex: 1, justifyContent: "center" },
   itemName: { fontSize: 14, fontWeight: "bold", marginBottom: 4 },
   itemPrice: { fontSize: 13, fontWeight: "600", marginBottom: 2 },

@@ -1,6 +1,9 @@
 import { useTheme } from "@/context/ThemeContext";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import ProductImage from "@/components/ProductImage";
+import { categoryLabel, type Product } from "@/lib/products";
+import { matchesQuery, productParams, useCatalog, useCategories, formatPrice } from "@/lib/productsApi";
 import {
     FlatList,
     StyleSheet,
@@ -10,43 +13,6 @@ import {
     View,
 } from "react-native";
 
-const allProducts = [
-  { id: "1", name: "iPhone 15 Pro", price: 999, rating: 4.8, icon: "📱", category: "Electronics" },
-  { id: "2", name: "Nike Air Max", price: 129, rating: 4.5, icon: "👟", category: "Fashion" },
-  { id: "3", name: "MacBook Pro", price: 1999, rating: 4.9, icon: "💻", category: "Electronics" },
-  { id: "4", name: "Sony Headphones", price: 299, rating: 4.7, icon: "🎧", category: "Electronics" },
-  { id: "5", name: "Samsung TV", price: 799, rating: 4.6, icon: "📺", category: "Electronics" },
-  { id: "6", name: "Adidas Shoes", price: 99, rating: 4.3, icon: "👟", category: "Fashion" },
-  { id: "7", name: "Coffee Maker", price: 49, rating: 4.2, icon: "☕", category: "Home" },
-  { id: "8", name: "Yoga Mat", price: 29, rating: 4.4, icon: "🧘", category: "Sports" },
-  { id: "9", name: "Novel Book", price: 15, rating: 4.6, icon: "📖", category: "Books" },
-  { id: "10", name: "Lipstick Set", price: 35, rating: 4.5, icon: "💄", category: "Beauty" },
-  { id: "11", name: "Nintendo Switch", price: 349, rating: 4.7, icon: "🎮", category: "Gaming" },
-  { id: "12", name: "Leather Backpack", price: 89, rating: 4.4, icon: "🎒", category: "Travel" },
-  { id: "13", name: "Desk Lamp", price: 39, rating: 4.3, icon: "💡", category: "Home" },
-  { id: "14", name: "Running Watch", price: 159, rating: 4.6, icon: "⌚", category: "Sports" },
-  { id: "15", name: "Bestseller Novel", price: 18, rating: 4.8, icon: "📚", category: "Books" },
-  { id: "16", name: "Face Serum", price: 45, rating: 4.5, icon: "🧴", category: "Beauty" },
-  { id: "17", name: "Wireless Mouse", price: 29, rating: 4.2, icon: "🖱️", category: "Electronics" },
-  { id: "18", name: "Minimalist Chair", price: 129, rating: 4.4, icon: "🪑", category: "Home" },
-  { id: "19", name: "Winter Jacket", price: 119, rating: 4.6, icon: "🧥", category: "Fashion" },
-  { id: "20", name: "Travel Mug", price: 24, rating: 4.3, icon: "☕", category: "Travel" },
-  { id: "21", name: "Mechanical Keyboard", price: 89, rating: 4.7, icon: "⌨️", category: "Electronics" },
-  { id: "22", name: "Office Chair", price: 149, rating: 4.5, icon: "💼", category: "Office" },
-  { id: "23", name: "Skincare Kit", price: 55, rating: 4.6, icon: "🧼", category: "Beauty" },
-  { id: "24", name: "Yoga Block Set", price: 34, rating: 4.4, icon: "🧘", category: "Sports" },
-  { id: "25", name: "Nintendo Switch OLED", price: 349, rating: 4.8, icon: "🎮", category: "Gaming" },
-  { id: "26", name: "Gaming Headset", price: 89, rating: 4.6, icon: "🎧", category: "Gaming" },
-  { id: "27", name: "Carry-On Luggage", price: 129, rating: 4.5, icon: "🧳", category: "Travel" },
-  { id: "28", name: "Travel Pillow", price: 27, rating: 4.4, icon: "🛏️", category: "Travel" },
-  { id: "29", name: "Ergonomic Mouse", price: 59, rating: 4.6, icon: "🖱️", category: "Office" },
-  { id: "30", name: "Standing Desk", price: 249, rating: 4.7, icon: "🖥️", category: "Office" },
-];
-
-const quickTags = ["Electronics", "Fashion", "Home", "Books", "Sports", "Beauty", "Gaming", "Travel", "Office"];
-
-const trendingSearches = ["Nintendo Switch", "iPhone 15 Pro", "Gaming Headset", "Nike Air Max", "MacBook Pro"];
-
 const priceRanges = [
   { label: "Under $50", min: 0, max: 50 },
   { label: "$50 - $150", min: 50, max: 150 },
@@ -54,17 +20,33 @@ const priceRanges = [
   { label: "$300+", min: 300, max: Infinity },
 ];
 
+type PriceRange = (typeof priceRanges)[number];
+
 const MAX_RECENT = 5;
+const MAX_QUICK_TAGS = 10;
 
 export default function Search() {
   const [query, setQuery] = useState("");
-  const [recentSearches, setRecentSearches] = useState([]);
-  const [priceRange, setPriceRange] = useState(null);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [priceRange, setPriceRange] = useState<PriceRange | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const router = useRouter();
   const { colors } = useTheme();
+  const { products: allProducts } = useCatalog();
+  const { categories } = useCategories();
 
-  const commitSearch = (term) => {
+  // Quick tags = biggest categories; trending = best-rated products.
+  const quickTags = useMemo(() => categories.slice(0, MAX_QUICK_TAGS).map((c) => c.name), [categories]);
+  const trendingSearches = useMemo(
+    () =>
+      [...allProducts]
+        .sort((a, b) => b.rating * Math.log10(10 + b.reviews) - a.rating * Math.log10(10 + a.reviews))
+        .slice(0, 5)
+        .map((p) => p.name),
+    [allProducts]
+  );
+
+  const commitSearch = (term: string) => {
     const trimmed = term.trim();
     if (!trimmed) return;
     setRecentSearches((prev) => {
@@ -73,19 +55,14 @@ export default function Search() {
     });
   };
 
-  const runSearch = (term) => {
+  const runSearch = (term: string) => {
     setQuery(term);
     commitSearch(term);
   };
 
-  const filtered = allProducts.filter((p) => {
-    const matchesQuery =
-      p.name.toLowerCase().includes(query.toLowerCase()) ||
-      p.category.toLowerCase().includes(query.toLowerCase());
-    const matchesPrice = priceRange
-      ? p.price >= priceRange.min && p.price <= priceRange.max
-      : true;
-    return matchesQuery && matchesPrice;
+  const filtered = allProducts.filter((p: Product) => {
+    const matchesPrice = priceRange ? p.price >= priceRange.min && p.price <= priceRange.max : true;
+    return matchesPrice && matchesQuery(p, query);
   });
 
   const showBrowseState = query.length === 0;
@@ -237,27 +214,20 @@ export default function Search() {
               style={[styles.productCard, { backgroundColor: colors.card, borderColor: colors.border }]}
               onPress={() => {
                 commitSearch(query);
-                router.push({
-                  pathname: "/(stack)/product-detail",
-                  params: {
-                    id: item.id,
-                    name: item.name,
-                    price: item.price,
-                    rating: item.rating,
-                    icon: item.icon,
-                  },
-                });
+                router.push({ pathname: "/(stack)/product-detail", params: productParams(item) });
               }}
             >
               <View style={[styles.productIconWrap, { backgroundColor: colors.background }]}>
-                <Text style={styles.productIcon}>{item.icon}</Text>
+                <ProductImage uri={item.thumbnail} icon={item.icon} size={44} />
               </View>
               <View style={styles.productInfo}>
-                <Text style={[styles.productName, { color: colors.text }]}>{item.name}</Text>
-                <Text style={[styles.productCategory, { color: colors.subtext }]}>{item.category}</Text>
+                <Text style={[styles.productName, { color: colors.text }]} numberOfLines={2}>{item.name}</Text>
+                <Text style={[styles.productCategory, { color: colors.subtext }]}>
+                  {item.brand ? `${item.brand} · ` : ""}{categoryLabel(item.category)}
+                </Text>
                 <Text style={[styles.productRating, { color: colors.subtext }]}>⭐ {item.rating}</Text>
               </View>
-              <Text style={[styles.productPrice, { color: colors.primary }]}>${item.price}</Text>
+              <Text style={[styles.productPrice, { color: colors.primary }]}>${formatPrice(item.price)}</Text>
             </TouchableOpacity>
           )}
         />

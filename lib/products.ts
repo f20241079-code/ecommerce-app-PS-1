@@ -1,9 +1,10 @@
 /**
- * Canonical product catalog.
+ * Product model + bundled fallback catalog.
  *
- * This is the single source of truth used by the recommendation engine
- * (lib/recommendations.ts) and by scripts/generate-product-seed.ts, which
- * turns it into the SQL seed for the Supabase `products` table.
+ * The live catalog comes from the Supabase `products` table (filled by
+ * scripts/import-products.mjs) and is loaded by lib/productsApi.ts, which
+ * calls setCatalog(). PRODUCTS below is only used when the backend can't be
+ * reached (offline / not set up yet), and by scripts/generate-product-seed.mjs.
  *
  * `description` and `tags` exist mainly to give the ML model rich text to
  * learn from: the embedding of a product is computed from
@@ -22,6 +23,15 @@ export type Product = {
   badge: string;
   description: string;
   tags: string[];
+  // Present for products imported from the real catalog.
+  brand?: string;
+  images?: string[];
+  thumbnail?: string;
+  stock?: number;
+  availabilityStatus?: string;
+  warranty?: string;
+  shipping?: string;
+  returnPolicy?: string;
 };
 
 export const PRODUCTS: Product[] = [
@@ -177,23 +187,47 @@ export const PRODUCTS: Product[] = [
   },
 ];
 
-const byId = new Map(PRODUCTS.map((p) => [p.id, p]));
+// ---------------------------------------------------------------------------
+// Current catalog (bundled fallback until lib/productsApi.ts loads real data)
+// ---------------------------------------------------------------------------
 
 const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-const byName = new Map(PRODUCTS.map((p) => [normalize(p.name), p]));
+
+let catalog: Product[] = PRODUCTS;
+let catalogVersion = 0;
+let byId = new Map<string, Product>();
+let byName = new Map<string, Product>();
+
+function indexCatalog() {
+  byId = new Map(catalog.map((p) => [p.id, p]));
+  byName = new Map(catalog.map((p) => [normalize(p.name), p]));
+}
+indexCatalog();
+
+export function setCatalog(products: Product[]) {
+  if (products.length === 0) return;
+  catalog = products;
+  catalogVersion++;
+  indexCatalog();
+}
+
+export const getCatalog = () => catalog;
+/** Increments every time the catalog is replaced (used to invalidate caches). */
+export const getCatalogVersion = () => catalogVersion;
 
 /**
- * Resolve a product from navigation params. Different screens still carry
- * their own (slightly different) product lists, so the name is checked
- * first and the id is only used when the name is unknown.
+ * Resolve a product from navigation params / cart items. The id is tried
+ * first; the name is used for items saved before the catalog changed.
  */
 export function findProduct(id?: string, name?: string): Product | undefined {
   if (name) {
+    const p = id ? byId.get(id) : undefined;
+    if (p && normalize(p.name) === normalize(name)) return p;
     const key = normalize(name);
     const exact = byName.get(key);
     if (exact) return exact;
-    // e.g. "Nike Air Max" -> "Nike Air Max 270", "Apple Watch" -> "Apple Watch S9"
-    const partial = PRODUCTS.find((p) => normalize(p.name).startsWith(key + " "));
+    // e.g. "Nike Air Max" -> "Nike Air Max 270"
+    const partial = catalog.find((c) => normalize(c.name).startsWith(key + " "));
     if (partial) return partial;
     return undefined;
   }
@@ -204,7 +238,19 @@ export function getProductById(id: string): Product | undefined {
   return byId.get(id);
 }
 
+/** "mens-shirts" -> "Mens Shirts" */
+export function categoryLabel(category: string): string {
+  return category
+    .split(/[-_ ]+/)
+    .filter(Boolean)
+    .map((w) => w[0].toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
 /** Text the ML model embeds for a product. Keep in sync with the edge function. */
-export function productText(p: Pick<Product, "name" | "category" | "description" | "tags">): string {
-  return `${p.name}. Category: ${p.category}. ${p.description} Tags: ${p.tags.join(", ")}.`;
+export function productText(
+  p: Pick<Product, "name" | "category" | "description" | "tags"> & { brand?: string | null }
+): string {
+  const brand = p.brand ? ` Brand: ${p.brand}.` : "";
+  return `${p.name}. Category: ${categoryLabel(p.category)}.${brand} ${p.description} Tags: ${p.tags.join(", ")}.`;
 }
