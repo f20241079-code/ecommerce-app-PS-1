@@ -38,7 +38,6 @@ export default function ProductDetail() {
   const { addToCart } = useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   const [quantity, setQuantity] = useState(1);
-  const [selectedColor, setSelectedColor] = useState(0);
   const [imageIndex, setImageIndex] = useState(0);
 
   // Prefer the live catalog record; fall back to whatever the caller passed.
@@ -71,7 +70,6 @@ export default function ProductDetail() {
   const discount = originalPrice && originalPrice > price ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
   const productDesc = description || productDescriptions[name] || "Premium quality product with excellent features and durability. Perfect for everyday use and comes with a 1 year warranty and free returns within 30 days.";
 
-  const colors_list = ["⚫", "⚪", "🔵", "🔴"];
 
   const handleAddToCart = () => {
     for (let i = 0; i < quantity; i++) {
@@ -203,25 +201,6 @@ export default function ProductDetail() {
           )}
         </View>
 
-        {/* Color Selection */}
-        <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Select Color</Text>
-          <View style={styles.colorsRow}>
-            {colors_list.map((color, index) => (
-              <TouchableOpacity
-                key={index}
-                style={[
-                  styles.colorBtn,
-                  { borderColor: selectedColor === index ? colors.primary : colors.border },
-                ]}
-                onPress={() => setSelectedColor(index)}
-              >
-                <Text style={{ fontSize: 20 }}>{color}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
         {/* Quantity */}
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Quantity</Text>
@@ -349,8 +328,6 @@ const styles = StyleSheet.create({
   saveText: { fontSize: 12, fontWeight: "bold" },
   section: { marginHorizontal: 16, marginBottom: 12, borderRadius: 16, padding: 16, borderWidth: 1 },
   sectionTitle: { fontSize: 16, fontWeight: "bold", marginBottom: 12 },
-  colorsRow: { flexDirection: "row", gap: 12 },
-  colorBtn: { width: 44, height: 44, borderRadius: 12, borderWidth: 2, justifyContent: "center", alignItems: "center" },
   quantityRow: { flexDirection: "row", alignItems: "center", gap: 16 },
   qtyBtn: { width: 36, height: 36, borderRadius: 10, justifyContent: "center", alignItems: "center" },
   qtyBtnText: { color: "#fff", fontSize: 20, fontWeight: "bold" },

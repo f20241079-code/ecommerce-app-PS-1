@@ -33,6 +33,7 @@ The import script uses it to write data. **Never put it in the app or commit it.
    Editor and run it, or run `supabase db push`:
    - `supabase/migrations/20261102000000_product_recommendations.sql`
    - `supabase/migrations/20261103000000_real_product_data.sql`
+   - `supabase/migrations/20261104000000_orders_and_addresses.sql` (addresses, orders, checkout)
 
 2. **Deploy the embedding function.** This is optional, but it switches on the ✨ AI recommendations:
 
@@ -69,11 +70,28 @@ The import script uses it to write data. **Never put it in the app or commit it.
 | `components/ProductImage.tsx` | Product photo with the emoji as a fallback |
 | `scripts/import-products.mjs` | DummyJSON → Supabase importer |
 | `supabase/migrations/20261103000000_real_product_data.sql` | New product columns, `product_reviews` table, updated recommendation functions |
+| `supabase/migrations/20261104000000_orders_and_addresses.sql` | Per-user `addresses`, `orders`, `order_items`; `place_order` / `cancel_order` functions |
+| `lib/account.ts` | Addresses, orders and profile stats for the signed-in user |
 
 ## Notes
 
 - Reviewer email addresses from DummyJSON are deliberately not imported.
 - Prices: DummyJSON's `price` is stored as `original_price`, and `price` is the
   price after `discountPercentage` is applied.
-- The "Select Color" picker on the product page is still placeholder UI, because the data has no
-  colour variants.
+
+## Accounts, addresses and orders
+
+- **Addresses** (Profile → Address Management, or during checkout): add, edit, delete and
+  set a default. The first address becomes the default automatically.
+- **Checkout** places a real order through the `place_order` database function. It takes
+  prices, discounts and stock from the `products` table, not from the app, so the app can't
+  change what an order costs. Stock goes down when an order is placed. Delivery is free from $50.
+- **Order History** shows your orders with their items, delivery address and savings.
+  **Cancel** works while the order is still "Processing" and puts the stock back.
+  **Reorder** adds the items to the cart again.
+- **Profile** shows your real order count, wishlist count, address count and total saved.
+- Row level security means each user can only read and change their own addresses and
+  orders. Orders can't be written directly; they are only created through `place_order`.
+- To move an order along, change its `status` to `shipped` or `delivered` in the
+  Supabase table editor. There is no admin screen yet.
+- This is a demo store: **no payment is collected**.
