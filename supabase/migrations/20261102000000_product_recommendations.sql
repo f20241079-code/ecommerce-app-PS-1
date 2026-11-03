@@ -61,8 +61,14 @@ create policy "Products are viewable by everyone"
   to anon, authenticated
   using (true);
 
+-- Drop first: a later migration changes these functions' return columns, and
+-- Postgres can't "create or replace" a function with a different return type.
+-- Dropping keeps this file safe to re-run on a database that's further along.
+drop function if exists public.match_similar_products(text, integer);
+drop function if exists public.recommend_products(text[], integer);
+
 -- "You may also like": the products closest to one product.
-create or replace function public.match_similar_products(
+create function public.match_similar_products(
   p_product_id text,
   match_count  integer default 6
 )
@@ -89,7 +95,7 @@ $$;
 
 -- "Recommended for you": the products closest to the average (centroid) of
 -- the products a user has shown interest in (cart, wishlist, ...).
-create or replace function public.recommend_products(
+create function public.recommend_products(
   seed_ids    text[],
   match_count integer default 6
 )
