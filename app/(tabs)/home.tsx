@@ -1,4 +1,5 @@
 import React from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   View,
   Text,
@@ -10,73 +11,76 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useTheme } from "@/context/ThemeContext";
+import { useCart } from "@/context/CartContext";
+import { useWishlist } from "@/context/WishlistContext";
+import RecommendedProducts from "@/components/RecommendedProducts";
+import { findProduct, type Product } from "@/lib/products";
+import { productParams, useCatalog, useCategories, discountPercent, formatPrice } from "@/lib/productsApi";
+import ProductImage from "@/components/ProductImage";
+import { useRecommendations } from "@/lib/recommendations";
 
-const categories = [
-  { id: "1", name: "Electronics", icon: "📱", color: "#6C63FF" },
-  { id: "2", name: "Fashion", icon: "👗", color: "#FF6584" },
-  { id: "3", name: "Sports", icon: "⚽", color: "#43E97B" },
-  { id: "4", name: "Books", icon: "📚", color: "#FFB800" },
-  { id: "5", name: "Beauty", icon: "💄", color: "#FF6584" },
-  { id: "6", name: "Gaming", icon: "🎮", color: "#6C63FF" },
-  { id: "7", name: "Travel", icon: "🧳", color: "#4ECDC4" },
-  { id: "8", name: "Office", icon: "💼", color: "#FFB800" },
-];
+const PAGE_SIZE = 20;
 
-const featuredProducts = [
-  { id: "1", name: "iPhone 15 Pro", price: 999, originalPrice: 1199, rating: 4.8, icon: "📱", badge: "Best Seller" },
-  { id: "2", name: "Nike Air Max", price: 129, originalPrice: 180, rating: 4.5, icon: "👟", badge: "Popular" },
-  { id: "3", name: "MacBook Pro", price: 1999, originalPrice: 2499, rating: 4.9, icon: "💻", badge: "Top Rated" },
-  { id: "4", name: "Sony Headphones", price: 299, originalPrice: 399, rating: 4.7, icon: "🎧", badge: "New" },
-  { id: "5", name: "iPad Pro", price: 799, originalPrice: 999, rating: 4.8, icon: "📱", badge: "Sale" },
-  { id: "6", name: "Samsung TV", price: 799, originalPrice: 1199, rating: 4.6, icon: "📺", badge: "Deal" },
-];
-
-const allProducts = [
-  { id: "1", name: "iPhone 15 Pro", price: 999, originalPrice: 1199, rating: 4.8, icon: "📱", category: "Electronics" },
-  { id: "2", name: "Nike Air Max 270", price: 129, originalPrice: 180, rating: 4.5, icon: "👟", category: "Fashion" },
-  { id: "3", name: "MacBook Pro 16\"", price: 1999, originalPrice: 2499, rating: 4.9, icon: "💻", category: "Electronics" },
-  { id: "4", name: "Sony WH-1000XM5", price: 299, originalPrice: 399, rating: 4.7, icon: "🎧", category: "Electronics" },
-  { id: "5", name: "Samsung 65\" TV", price: 799, originalPrice: 1199, rating: 4.6, icon: "📺", category: "Electronics" },
-  { id: "6", name: "Adidas Ultraboost", price: 189, originalPrice: 220, rating: 4.4, icon: "👟", category: "Fashion" },
-  { id: "7", name: "Nespresso Machine", price: 79, originalPrice: 99, rating: 4.3, icon: "☕", category: "Home" },
-  { id: "8", name: "Lululemon Yoga Mat", price: 88, originalPrice: 98, rating: 4.6, icon: "🧘", category: "Sports" },
-  { id: "9", name: "Atomic Habits", price: 18, originalPrice: 25, rating: 4.9, icon: "📖", category: "Books" },
-  { id: "10", name: "Charlotte Tilbury", price: 65, originalPrice: 75, rating: 4.7, icon: "💄", category: "Beauty" },
-  { id: "11", name: "iPad Pro 12.9\"", price: 1099, originalPrice: 1199, rating: 4.8, icon: "📱", category: "Electronics" },
-  { id: "12", name: "Levi's 501 Jeans", price: 69, originalPrice: 89, rating: 4.4, icon: "👖", category: "Fashion" },
-  { id: "13", name: "Nintendo Switch", price: 349, originalPrice: 399, rating: 4.8, icon: "🎮", category: "Gaming" },
-  { id: "14", name: "Gaming Headset", price: 89, originalPrice: 120, rating: 4.6, icon: "🎧", category: "Gaming" },
-  { id: "15", name: "Carry-On Luggage", price: 129, originalPrice: 180, rating: 4.5, icon: "🧳", category: "Travel" },
-  { id: "16", name: "Travel Pillow", price: 27, originalPrice: 35, rating: 4.4, icon: "🛏️", category: "Travel" },
-  { id: "17", name: "Ergonomic Mouse", price: 59, originalPrice: 79, rating: 4.6, icon: "🖱️", category: "Office" },
-  { id: "18", name: "Standing Desk", price: 249, originalPrice: 349, rating: 4.7, icon: "🖥️", category: "Office" },
-  { id: "19", name: "AirPods Pro", price: 199, originalPrice: 249, rating: 4.8, icon: "🎧", category: "Electronics" },
-  { id: "20", name: "Apple Watch", price: 399, originalPrice: 499, rating: 4.7, icon: "⌚", category: "Electronics" },
-];
-
-const banners = [
-  { id: "1", title: "Big Sale! 🔥", subtitle: "Up to 70% off Electronics", color: "#6C63FF", icon: "📱", category: "Electronics" },
-  { id: "2", title: "New Arrivals ✨", subtitle: "Latest Fashion Collection", color: "#FF6584", icon: "👗", category: "Fashion" },
-  { id: "3", title: "Free Delivery 🚚", subtitle: "On orders above $50", color: "#43E97B", icon: "🛍️", category: null },
-];
+const greeting = () => {
+  const h = new Date().getHours();
+  return h < 12 ? "Good Morning" : h < 17 ? "Good Afternoon" : "Good Evening";
+};
 
 export default function Home() {
   const router = useRouter();
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
+  const { items: cartItems } = useCart();
+  const { items: wishlistItems } = useWishlist();
 
-  const navigateToProduct = (item: any) => {
-    router.push({
-      pathname: "/(stack)/product-detail",
-      params: {
-        id: item.id,
-        name: item.name,
-        price: item.price,
-        originalPrice: item.originalPrice,
-        rating: item.rating,
-        icon: item.icon,
+  // The user's interests (cart + wishlist) seed the ML recommendations.
+  const seedIds = React.useMemo(
+    () =>
+      [...cartItems, ...wishlistItems]
+        .map((i) => findProduct(i.id, i.name)?.id)
+        .filter((id): id is string => !!id),
+    [cartItems, wishlistItems]
+  );
+  const recommendations = useRecommendations(seedIds, 8);
+
+  const { products: allProducts, loading } = useCatalog();
+  const { categories } = useCategories();
+  const [visibleCount, setVisibleCount] = React.useState(PAGE_SIZE);
+
+  // Featured = best-rated products with a real discount.
+  const featuredProducts = React.useMemo(
+    () =>
+      [...allProducts]
+        .filter((p) => discountPercent(p) > 0)
+        .sort((a, b) => b.rating - a.rating || discountPercent(b) - discountPercent(a))
+        .slice(0, 8),
+    [allProducts]
+  );
+
+  // Banners point at real categories from the catalog.
+  const banners = React.useMemo(() => {
+    const maxDiscount = (slug: string) =>
+      Math.max(0, ...allProducts.filter((p) => p.category === slug).map(discountPercent));
+    const [first, second] = categories;
+    return [
+      first && {
+        id: "1", title: "Big Sale! 🔥", subtitle: `Up to ${maxDiscount(first.slug)}% off ${first.name}`,
+        color: "#6C63FF", icon: first.icon, category: first.slug,
       },
-    });
+      second && {
+        id: "2", title: "Top Picks ✨", subtitle: `Explore ${second.name}`,
+        color: "#FF6584", icon: second.icon, category: second.slug,
+      },
+      {
+        id: "3", title: "Free Delivery 🚚", subtitle: "On orders above $50",
+        color: "#43E97B", icon: "🛍️", category: null as string | null,
+      },
+    ].filter(Boolean) as { id: string; title: string; subtitle: string; color: string; icon: string; category: string | null }[];
+  }, [allProducts, categories]);
+
+  const navigateToProduct = (item: Product) => {
+    router.push({ pathname: "/(stack)/product-detail", params: productParams(item) });
   };
 
   const navigateToBanner = (banner: any) => {
@@ -96,9 +100,9 @@ export default function Home() {
       showsVerticalScrollIndicator={false}
     >
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.primary }]}>
+      <View style={[styles.header, { backgroundColor: colors.primary, paddingTop: insets.top + 16 }]}>
         <View>
-          <Text style={styles.greeting}>Good Morning 👋</Text>
+          <Text style={styles.greeting}>{greeting()} 👋</Text>
           <Text style={styles.headerTitle}>Find Amazing Deals</Text>
         </View>
         <TouchableOpacity style={styles.notifBtn}>
@@ -156,7 +160,7 @@ export default function Home() {
         data={categories}
         horizontal
         showsHorizontalScrollIndicator={false}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.slug}
         contentContainerStyle={styles.categoriesList}
         renderItem={({ item }) => (
           <TouchableOpacity
@@ -164,16 +168,25 @@ export default function Home() {
             onPress={() =>
               router.push({
                 pathname: "/(stack)/category",
-                params: { name: item.name },
+                params: { name: item.slug },
               })
             }
           >
             <View style={[styles.categoryIconWrap, { backgroundColor: item.color }]}>
               <Text style={styles.categoryIcon}>{item.icon}</Text>
             </View>
-            <Text style={[styles.categoryName, { color: colors.text }]}>{item.name}</Text>
+            <Text style={[styles.categoryName, { color: colors.text }]} numberOfLines={2}>
+              {item.name}
+            </Text>
           </TouchableOpacity>
         )}
+      />
+
+      {/* Personalised ML recommendations */}
+      <RecommendedProducts
+        title={seedIds.length > 0 ? "💡 Recommended for You" : "💡 Popular Picks"}
+        result={recommendations}
+        style={styles.recommendedSection}
       />
 
       {/* Featured Products - Horizontal Scroll */}
@@ -194,19 +207,19 @@ export default function Home() {
             style={[styles.featuredCard, { backgroundColor: colors.card, borderColor: colors.border }]}
             onPress={() => navigateToProduct(item)}
           >
-            {item.badge && (
+            {!!item.badge && (
               <View style={[styles.badge, { backgroundColor: colors.primary }]}>
                 <Text style={styles.badgeText}>{item.badge}</Text>
               </View>
             )}
-            <Text style={styles.featuredIcon}>{item.icon}</Text>
+            <ProductImage uri={item.thumbnail} icon={item.icon} size={80} style={styles.featuredIcon} />
             <Text style={[styles.featuredName, { color: colors.text }]} numberOfLines={2}>
               {item.name}
             </Text>
             <Text style={[styles.originalPrice, { color: colors.subtext }]}>
-              ${item.originalPrice}
+              ${formatPrice(item.originalPrice)}
             </Text>
-            <Text style={[styles.featuredPrice, { color: colors.primary }]}>${item.price}</Text>
+            <Text style={[styles.featuredPrice, { color: colors.primary }]}>${formatPrice(item.price)}</Text>
             <Text style={[styles.featuredRating, { color: colors.subtext }]}>⭐ {item.rating}</Text>
           </TouchableOpacity>
         )}
@@ -215,11 +228,11 @@ export default function Home() {
       {/* All Products - Vertical Scroll Grid */}
       <View style={styles.sectionHeader}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>🛍️ All Products</Text>
-        <Text style={[styles.productCount, { color: colors.subtext }]}>{allProducts.length} items</Text>
+        <Text style={[styles.productCount, { color: colors.subtext }]}>{loading ? "Loading…" : `${allProducts.length} items`}</Text>
       </View>
 
       <View style={styles.grid}>
-        {allProducts.map((item) => (
+        {allProducts.slice(0, visibleCount).map((item) => (
           <TouchableOpacity
             key={item.id}
             style={[
@@ -229,23 +242,34 @@ export default function Home() {
             ]}
             onPress={() => navigateToProduct(item)}
           >
-            <Text style={styles.gridIcon}>{item.icon}</Text>
+            <ProductImage uri={item.thumbnail} icon={item.icon} size={90} style={styles.gridIcon} />
             <Text style={[styles.gridName, { color: colors.text }]} numberOfLines={2}>
               {item.name}
             </Text>
             <Text style={[styles.gridOriginal, { color: colors.subtext }]}>
-              ${item.originalPrice}
+              ${formatPrice(item.originalPrice)}
             </Text>
-            <Text style={[styles.gridPrice, { color: colors.primary }]}>${item.price}</Text>
+            <Text style={[styles.gridPrice, { color: colors.primary }]}>${formatPrice(item.price)}</Text>
             <View style={styles.gridFooter}>
               <Text style={[styles.gridRating, { color: colors.subtext }]}>⭐ {item.rating}</Text>
-              <Text style={[styles.gridDiscount, { color: "#43E97B" }]}>
-                {Math.round(((item.originalPrice - item.price) / item.originalPrice) * 100)}% off
-              </Text>
+              {discountPercent(item) > 0 && (
+                <Text style={[styles.gridDiscount, { color: "#43E97B" }]}>{discountPercent(item)}% off</Text>
+              )}
             </View>
           </TouchableOpacity>
         ))}
       </View>
+
+      {visibleCount < allProducts.length && (
+        <TouchableOpacity
+          style={[styles.loadMoreBtn, { borderColor: colors.primary }]}
+          onPress={() => setVisibleCount((n) => n + PAGE_SIZE)}
+        >
+          <Text style={[styles.loadMoreText, { color: colors.primary }]}>
+            Show more ({allProducts.length - visibleCount} left)
+          </Text>
+        </TouchableOpacity>
+      )}
 
       <View style={{ height: 30 }} />
     </ScrollView>
@@ -253,8 +277,9 @@ export default function Home() {
 }
 
 const styles = StyleSheet.create({
+  recommendedSection: { paddingLeft: 20, paddingRight: 10, marginBottom: 20 },
   container: { flex: 1 },
-  header: { paddingTop: 50, paddingBottom: 24, paddingHorizontal: 20, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  header: { paddingBottom: 24, paddingHorizontal: 20, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   greeting: { fontSize: 13, color: "rgba(255,255,255,0.8)", marginBottom: 2 },
   headerTitle: { fontSize: 22, fontWeight: "bold", color: "#fff" },
   notifBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: "rgba(255,255,255,0.2)", justifyContent: "center", alignItems: "center" },
@@ -274,22 +299,24 @@ const styles = StyleSheet.create({
   seeAll: { fontSize: 14, fontWeight: "600" },
   productCount: { fontSize: 13 },
   categoriesList: { paddingHorizontal: 20, marginBottom: 20 },
-  categoryItem: { alignItems: "center", marginRight: 14, padding: 12, borderRadius: 16, width: 82 },
+  categoryItem: { alignItems: "center", marginRight: 10, paddingVertical: 12, paddingHorizontal: 6, borderRadius: 16, width: 86, minHeight: 104 },
   categoryIconWrap: { width: 48, height: 48, borderRadius: 14, justifyContent: "center", alignItems: "center", marginBottom: 6 },
   categoryIcon: { fontSize: 24 },
-  categoryName: { fontSize: 11, fontWeight: "600", textAlign: "center" },
+  categoryName: { fontSize: 11, fontWeight: "600", textAlign: "center", lineHeight: 14 },
   featuredList: { paddingHorizontal: 20, marginBottom: 20 },
   featuredCard: { width: 155, borderRadius: 16, padding: 12, marginRight: 12, borderWidth: 1, elevation: 2, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4 },
   badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, alignSelf: "flex-start", marginBottom: 6 },
   badgeText: { color: "#fff", fontSize: 10, fontWeight: "bold" },
-  featuredIcon: { fontSize: 44, textAlign: "center", marginBottom: 8 },
+  featuredIcon: { alignSelf: "center", marginBottom: 8 },
   featuredName: { fontSize: 13, fontWeight: "bold", marginBottom: 4, height: 34 },
   originalPrice: { fontSize: 11, textDecorationLine: "line-through", marginBottom: 2 },
   featuredPrice: { fontSize: 15, fontWeight: "bold", marginBottom: 4 },
   featuredRating: { fontSize: 11 },
   grid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 12, gap: 10 },
   gridCard: { borderRadius: 16, padding: 12, borderWidth: 1, elevation: 2, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4 },
-  gridIcon: { fontSize: 44, textAlign: "center", marginBottom: 8 },
+  gridIcon: { alignSelf: "center", marginBottom: 8 },
+  loadMoreBtn: { marginHorizontal: 20, marginTop: 14, paddingVertical: 12, borderRadius: 12, borderWidth: 1.5, alignItems: "center" },
+  loadMoreText: { fontSize: 14, fontWeight: "bold" },
   gridName: { fontSize: 13, fontWeight: "bold", marginBottom: 4, height: 36 },
   gridOriginal: { fontSize: 11, textDecorationLine: "line-through", marginBottom: 2 },
   gridPrice: { fontSize: 15, fontWeight: "bold", marginBottom: 6 },

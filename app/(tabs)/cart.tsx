@@ -1,4 +1,7 @@
 import React, { useState } from "react";
+import { findProduct } from "@/lib/products";
+import { useCatalog } from "@/lib/productsApi";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   View,
   Text,
@@ -10,20 +13,28 @@ import {
 import { useRouter } from "expo-router";
 import { useTheme } from "@/context/ThemeContext";
 import { useCart } from "@/context/CartContext";
+import ProductImage from "@/components/ProductImage";
 
 const { width } = Dimensions.get("window");
 
 export default function Cart() {
   const { items, increaseQuantity, decreaseQuantity, removeFromCart, total } = useCart();
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const [promoCode, setPromoCode] = useState("");
   const [promoApplied, setPromoApplied] = useState(false);
 
-  const delivery = total > 50 ? 0 : 5;
-  const discount = promoApplied ? Math.round(total * 0.1) : 0;
+  const delivery = total >= 50 ? 0 : 5;
+  const discount = promoApplied ? Math.round(total * 0.1 * 100) / 100 : 0;
   const finalTotal = total + delivery - discount;
-  const savings = items.reduce((sum, item) => sum + (item.price * 0.2 * item.quantity), 0);
+  useCatalog(); // re-render when live prices load
+  // Real savings: original (list) price minus what the customer pays.
+  const savings = items.reduce((sum, item) => {
+    const product = findProduct(item.id, item.name);
+    const original = product?.originalPrice ?? item.price;
+    return sum + Math.max(0, original - item.price) * item.quantity;
+  }, 0);
 
   if (items.length === 0) {
     return (
@@ -48,7 +59,7 @@ export default function Cart() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.primary }]}>
+      <View style={[styles.header, { backgroundColor: colors.primary, paddingTop: insets.top + 20 }]}>
         <Text style={styles.headerTitle}>My Cart 🛒</Text>
         <Text style={styles.headerCount}>{items.length} items</Text>
       </View>
@@ -63,7 +74,7 @@ export default function Cart() {
             {/* Savings Banner */}
             {savings > 0 && (
               <View style={[styles.savingsBanner, { backgroundColor: "#43E97B20", borderColor: "#43E97B" }]}>
-                <Text style={styles.savingsText}>🎉 You're saving ${savings.toFixed(0)} on this order!</Text>
+                <Text style={styles.savingsText}>🎉 You're saving ${savings.toFixed(2)} on this order!</Text>
               </View>
             )}
 
@@ -71,7 +82,7 @@ export default function Cart() {
             {total < 50 && (
               <View style={[styles.deliveryBanner, { backgroundColor: colors.primary + "15", borderColor: colors.primary }]}>
                 <Text style={[styles.deliveryText, { color: colors.primary }]}>
-                  🚚 Add ${(50 - total).toFixed(0)} more for FREE delivery!
+                  🚚 Add ${(50 - total).toFixed(2)} more for FREE delivery!
                 </Text>
               </View>
             )}
@@ -88,7 +99,7 @@ export default function Cart() {
           <View style={[styles.cartItem, { backgroundColor: colors.card, borderColor: colors.border }]}>
             {/* Product Icon */}
             <View style={[styles.iconWrap, { backgroundColor: colors.background }]}>
-              <Text style={styles.itemIcon}>{item.icon}</Text>
+              <ProductImage uri={item.image} icon={item.icon} size={52} style={styles.itemIcon} />
             </View>
 
             {/* Product Info */}
@@ -97,11 +108,11 @@ export default function Cart() {
                 {item.name}
               </Text>
               <Text style={[styles.itemPrice, { color: colors.primary }]}>
-                ${item.price} each
+                ${item.price.toFixed(2)} each
               </Text>
               <Text style={[styles.itemTotal, { color: colors.subtext }]}>
                 Total: <Text style={{ color: colors.text, fontWeight: "bold" }}>
-                  ${(item.price * item.quantity).toLocaleString()}
+                  ${(item.price * item.quantity).toFixed(2)}
                 </Text>
               </Text>
             </View>
@@ -143,14 +154,14 @@ export default function Cart() {
               <View style={styles.summaryRow}>
                 <Text style={[styles.summaryLabel, { color: colors.subtext }]}>Delivery</Text>
                 <Text style={[styles.summaryValue, { color: delivery === 0 ? "#43E97B" : colors.text }]}>
-                  {delivery === 0 ? "FREE" : `$${delivery}`}
+                  {delivery === 0 ? "FREE" : `$${delivery.toFixed(2)}`}
                 </Text>
               </View>
 
               {promoApplied && (
                 <View style={styles.summaryRow}>
                   <Text style={[styles.summaryLabel, { color: "#43E97B" }]}>Promo (SAVE10)</Text>
-                  <Text style={[styles.summaryValue, { color: "#43E97B" }]}>-${discount}</Text>
+                  <Text style={[styles.summaryValue, { color: "#43E97B" }]}>-${discount.toFixed(2)}</Text>
                 </View>
               )}
 
@@ -193,7 +204,7 @@ const styles = StyleSheet.create({
   emptySubtitle: { fontSize: 14, textAlign: "center", marginBottom: 24 },
   shopBtn: { paddingHorizontal: 32, paddingVertical: 16, borderRadius: 16 },
   shopBtnText: { color: "#fff", fontWeight: "bold", fontSize: 16 },
-  header: { paddingTop: 54, paddingBottom: 16, paddingHorizontal: 20, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  header: { paddingBottom: 16, paddingHorizontal: 20, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   headerTitle: { fontSize: 22, fontWeight: "bold", color: "#fff" },
   headerCount: { fontSize: 14, color: "rgba(255,255,255,0.8)", backgroundColor: "rgba(255,255,255,0.2)", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   listContent: { padding: 16 },
@@ -203,7 +214,7 @@ const styles = StyleSheet.create({
   deliveryText: { fontSize: 13, fontWeight: "600" },
   cartItem: { flexDirection: "row", borderRadius: 16, padding: 12, marginBottom: 12, borderWidth: 1, elevation: 2, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4 },
   iconWrap: { width: 70, height: 70, borderRadius: 14, justifyContent: "center", alignItems: "center", marginRight: 12 },
-  itemIcon: { fontSize: 40 },
+  itemIcon: {},
   itemInfo: { flex: 1, justifyContent: "center" },
   itemName: { fontSize: 14, fontWeight: "bold", marginBottom: 4 },
   itemPrice: { fontSize: 13, fontWeight: "600", marginBottom: 2 },

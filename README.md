@@ -54,3 +54,11 @@ Join our community of developers creating universal apps.
 
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+
+## Product data
+
+The catalog (about 190 real products with photos, brands, stock and reviews) lives in Supabase and is imported from DummyJSON with `scripts/import-products.mjs`. See [docs/PRODUCT_DATA.md](docs/PRODUCT_DATA.md) for setup.
+
+## ML recommendations
+
+Product recommendations ("You May Also Like" on the product page, "Recommended for You" on Home) use text embeddings stored in Supabase with pgvector. When the backend isn't set up, the app falls back to an on-device TF-IDF model. For how it works and how to set it up, see [docs/RECOMMENDATIONS.md](docs/RECOMMENDATIONS.md).

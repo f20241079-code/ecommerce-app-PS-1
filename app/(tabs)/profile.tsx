@@ -1,9 +1,12 @@
 import { useTheme } from "@/context/ThemeContext";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { supabase } from "@/lib/supabase";
+import { useWishlist } from "@/context/WishlistContext";
+import { fetchProfileStats, useFocusedQuery, type ProfileStats } from "@/lib/account";
+import { confirm, showMessage } from "@/lib/dialogs";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-  Alert,
   Image,
   ScrollView,
   StyleSheet,
@@ -15,7 +18,18 @@ import {
 export default function Profile() {
   const router = useRouter();
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const [user, setUser] = useState<any>(null);
+  const { count: wishlistCount } = useWishlist();
+  const { data: stats, loading: statsLoading } = useFocusedQuery<ProfileStats | null>(
+    fetchProfileStats,
+    null
+  );
+  const statValue = (n: number | undefined, format: (n: number) => string = String) =>
+    statsLoading ? "…" : n === undefined ? "–" : format(n);
+  const memberSince = user?.created_at
+    ? new Date(user.created_at).toLocaleDateString(undefined, { month: "short", year: "numeric" })
+    : null;
 
   const menuItems = [
     { id: "1", icon: "📦", label: "Order History", sublabel: "Track your orders", route: "/(stack)/order-history" },
@@ -23,7 +37,7 @@ export default function Profile() {
     { id: "3", icon: "✏️", label: "Edit Profile", sublabel: "Update your info", route: "/(stack)/edit-profile" },
     { id: "4", icon: "🔔", label: "Notifications", sublabel: "Manage alerts", route: "/(stack)/settings" },
     { id: "5", icon: "⚙️", label: "Settings", sublabel: "App preferences", route: "/(stack)/settings" },
-    { id: "6", icon: "❓", label: "Help & Support", sublabel: "Get assistance", onPress: () => Alert.alert("Help & Support", "Email: support@shoply.app\nPhone: +1-800-555-0199") },
+    { id: "6", icon: "❓", label: "Help & Support", sublabel: "Get assistance", onPress: () => showMessage("Help & Support", "Email: support@shoply.app\nPhone: +1-800-555-0199") },
   ];
 
   useEffect(() => {
@@ -36,17 +50,13 @@ export default function Profile() {
   }, []);
 
   const handleLogout = async () => {
-    Alert.alert("Logout", "Are you sure you want to logout?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Logout",
-        style: "destructive",
-        onPress: async () => {
-          await supabase.auth.signOut();
-          router.replace("/(auth)/login");
-        },
-      },
-    ]);
+    const ok = await confirm("Logout", "Are you sure you want to logout?", {
+      confirmText: "Logout",
+      destructive: true,
+    });
+    if (!ok) return;
+    await supabase.auth.signOut();
+    router.replace("/(auth)/login");
   };
 
   const getInitials = () => {
@@ -62,7 +72,7 @@ export default function Profile() {
       showsVerticalScrollIndicator={false}
     >
       {/* Header Banner */}
-      <View style={[styles.headerBanner, { backgroundColor: colors.primary }]}>
+      <View style={[styles.headerBanner, { backgroundColor: colors.primary, paddingTop: insets.top + 20 }]}>
         <Text style={styles.headerTitle}>My Profile</Text>
         <TouchableOpacity
           style={styles.editHeaderBtn}
@@ -94,29 +104,33 @@ export default function Profile() {
 
         {/* Member Badge */}
         <View style={[styles.memberBadge, { backgroundColor: colors.primary + "20" }]}>
-          <Text style={[styles.memberText, { color: colors.primary }]}>⭐ Premium Member</Text>
+          <Text style={[styles.memberText, { color: colors.primary }]}>
+            ⭐ {memberSince ? `Member since ${memberSince}` : "Member"}
+          </Text>
         </View>
       </View>
 
       {/* Stats */}
       <View style={[styles.statsRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={styles.stat}>
-          <Text style={[styles.statNumber, { color: colors.primary }]}>12</Text>
+          <Text style={[styles.statNumber, { color: colors.primary }]}>{statValue(stats?.orders)}</Text>
           <Text style={[styles.statLabel, { color: colors.subtext }]}>Orders</Text>
         </View>
         <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
         <View style={styles.stat}>
-          <Text style={[styles.statNumber, { color: colors.primary }]}>5</Text>
+          <Text style={[styles.statNumber, { color: colors.primary }]}>{wishlistCount}</Text>
           <Text style={[styles.statLabel, { color: colors.subtext }]}>Wishlist</Text>
         </View>
         <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
         <View style={styles.stat}>
-          <Text style={[styles.statNumber, { color: colors.primary }]}>3</Text>
-          <Text style={[styles.statLabel, { color: colors.subtext }]}>Reviews</Text>
+          <Text style={[styles.statNumber, { color: colors.primary }]}>{statValue(stats?.addresses)}</Text>
+          <Text style={[styles.statLabel, { color: colors.subtext }]}>Addresses</Text>
         </View>
         <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
         <View style={styles.stat}>
-          <Text style={[styles.statNumber, { color: colors.primary }]}>$240</Text>
+          <Text style={[styles.statNumber, { color: colors.primary }]} numberOfLines={1} adjustsFontSizeToFit>
+            {statValue(stats?.saved, (n) => `$${Number.isInteger(n) ? n : n.toFixed(2)}`)}
+          </Text>
           <Text style={[styles.statLabel, { color: colors.subtext }]}>Saved</Text>
         </View>
       </View>
@@ -166,7 +180,7 @@ export default function Profile() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  headerBanner: { paddingTop: 54, paddingBottom: 60, paddingHorizontal: 20, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  headerBanner: { paddingBottom: 60, paddingHorizontal: 20, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   headerTitle: { fontSize: 22, fontWeight: "bold", color: "#fff" },
   editHeaderBtn: { backgroundColor: "rgba(255,255,255,0.2)", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20 },
   editHeaderText: { color: "#fff", fontSize: 13, fontWeight: "600" },

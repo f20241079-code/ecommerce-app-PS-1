@@ -130,7 +130,6 @@ export default function EditProfile() {
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
-      <Text style={[styles.title, { color: colors.text }]}>Edit Profile ✏️</Text>
 
       <View style={styles.avatarContainer}>
         <TouchableOpacity onPress={showImageOptions} disabled={uploading}>
@@ -199,7 +198,7 @@ export default function EditProfile() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 50 },
+  container: { flex: 1, paddingTop: 8 },
   title: { fontSize: 24, fontWeight: "bold", paddingHorizontal: 20, marginBottom: 20 },
   avatarContainer: { alignItems: "center", marginBottom: 24 },
   avatar: { width: 80, height: 80, borderRadius: 40, justifyContent: "center", alignItems: "center", marginBottom: 8 },

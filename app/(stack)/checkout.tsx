@@ -1,10 +1,22 @@
 import { useCart } from "@/context/CartContext";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/context/ThemeContext";
+import ProductImage from "@/components/ProductImage";
 import { sendLocalNotification } from "@/lib/notifications";
-import { useRouter } from "expo-router";
-import { useState } from "react";
 import {
-    Alert,
+  fetchAddresses,
+  formatAddress,
+  friendlyError,
+  placeOrder,
+  useFocusedQuery,
+  type Address,
+  type Order,
+} from "@/lib/account";
+import { showMessage } from "@/lib/dialogs";
+import { useRouter } from "expo-router";
+import { useEffect, useState } from "react";
+import {
+    ActivityIndicator,
     ScrollView,
     StyleSheet,
     Text,
@@ -15,42 +27,70 @@ import {
 const steps = ["Cart", "Address", "Payment", "Confirm"];
 
 const paymentMethods = [
-  { id: "card", label: "Credit / Debit Card", detail: "**** **** **** 1234", icon: "💳" },
-  { id: "upi", label: "UPI", detail: "Pay via any UPI app", icon: "📲" },
+  { id: "card", label: "Credit / Debit Card", detail: "Visa, Mastercard, RuPay", icon: "💳" },
+  { id: "upi", label: "UPI", detail: "Google Pay, PhonePe, Paytm", icon: "📲" },
   { id: "cod", label: "Cash on Delivery", detail: "Pay when it arrives", icon: "💵" },
 ];
 
 export default function Checkout() {
   const router = useRouter();
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const { items, total, clearCart } = useCart();
   const [stepIndex, setStepIndex] = useState(0);
-  const [selectedPayment, setSelectedPayment] = useState("card");
+  const [selectedPayment, setSelectedPayment] = useState<Order["paymentMethod"]>("card");
+  const [placing, setPlacing] = useState(false);
+  const {
+    data: addresses,
+    loading: addressesLoading,
+    error: addressesError,
+    reload: reloadAddresses,
+  } = useFocusedQuery<Address[]>(fetchAddresses, []);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
 
-  const delivery = 5;
+  // Keep the selection valid; otherwise pick the default (or newest) address.
+  useEffect(() => {
+    if (selectedAddressId && addresses.some((a) => a.id === selectedAddressId)) return;
+    const preferred = addresses.find((a) => a.isDefault) ?? addresses[0];
+    setSelectedAddressId(preferred?.id ?? null);
+  }, [addresses, selectedAddressId]);
+
+  const selectedAddress = addresses.find((a) => a.id === selectedAddressId);
+
+  // Same rule as the cart: free delivery from $50.
+  const delivery = total >= 50 ? 0 : 5;
   const grandTotal = total + delivery;
+  const money = (n: number) => n.toFixed(2);
 
   const handlePlaceOrder = async () => {
-    await sendLocalNotification(
-      "Order Placed! 🎉",
-      `Your order of $${grandTotal} has been placed successfully!`
-    );
-    Alert.alert(
-      "Order Placed! 🎉",
-      "Your order has been placed successfully!",
-      [
-        {
-          text: "OK",
-          onPress: () => {
-            clearCart();
-            router.replace("/(tabs)/home");
-          },
-        },
-      ]
-    );
+    if (!selectedAddress) {
+      setStepIndex(1);
+      return;
+    }
+    setPlacing(true);
+    try {
+      const order = await placeOrder(
+        items.map((i) => ({ id: i.id, quantity: i.quantity })),
+        selectedAddress.id,
+        selectedPayment
+      );
+      clearCart();
+      sendLocalNotification(
+        "Order Placed! 🎉",
+        `Order #${order.orderNumber} for $${money(order.total)} has been placed.`
+      ).catch(() => {});
+      router.replace({ pathname: "/(stack)/order-history", params: { placed: String(order.orderNumber) } });
+    } catch (e) {
+      showMessage("Couldn't place your order", friendlyError(e));
+    } finally {
+      setPlacing(false);
+    }
   };
 
+  const canContinue = stepIndex !== 1 || !!selectedAddress;
+
   const goNext = () => {
+    if (!canContinue || placing) return;
     if (stepIndex < steps.length - 1) {
       setStepIndex((i) => i + 1);
     } else {
@@ -63,8 +103,24 @@ export default function Checkout() {
     else router.back();
   };
 
+  if (items.length === 0) {
+    return (
+      <View style={[styles.container, styles.emptyState, { backgroundColor: colors.background }]}>
+        <Text style={styles.emptyIcon}>🛒</Text>
+        <Text style={[styles.emptyTitle, { color: colors.text }]}>Nothing to check out</Text>
+        <Text style={[styles.emptySubtitle, { color: colors.subtext }]}>Add some products to your cart first.</Text>
+        <TouchableOpacity
+          style={[styles.emptyBtn, { backgroundColor: colors.primary }]}
+          onPress={() => router.replace("/(tabs)/home")}
+        >
+          <Text style={styles.emptyBtnText}>Browse Products</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top + 16 }]}>
       <View style={styles.headerRow}>
         <TouchableOpacity style={styles.backButton} onPress={goBack}>
           <Text style={[styles.backButtonText, { color: colors.primary }]}>←</Text>
@@ -119,13 +175,13 @@ export default function Checkout() {
             {items.map((item) => (
               <View key={item.id} style={[styles.itemCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <View style={[styles.itemIconWrap, { backgroundColor: colors.background }]}>
-                  <Text style={{ fontSize: 24 }}>{item.icon}</Text>
+                  <ProductImage uri={item.image} icon={item.icon} size={34} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.itemName, { color: colors.text }]}>{item.name}</Text>
                   <Text style={[styles.itemQty, { color: colors.subtext }]}>Qty: {item.quantity}</Text>
                 </View>
-                <Text style={[styles.itemPrice, { color: colors.primary }]}>${item.price * item.quantity}</Text>
+                <Text style={[styles.itemPrice, { color: colors.primary }]}>${money(item.price * item.quantity)}</Text>
               </View>
             ))}
           </View>
@@ -135,16 +191,58 @@ export default function Checkout() {
         {stepIndex === 1 && (
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Delivery Address</Text>
-            <View style={[styles.addressCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <View style={styles.addressHeaderRow}>
-                <Text style={{ fontSize: 20 }}>📍</Text>
-                <Text style={[styles.addressName, { color: colors.text }]}>123 Main Street</Text>
+            {addressesLoading ? (
+              <ActivityIndicator color={colors.primary} style={{ marginVertical: 20 }} />
+            ) : addressesError ? (
+              <View style={[styles.addressCard, { backgroundColor: colors.card, borderColor: colors.error }]}>
+                <Text style={{ color: colors.error, marginBottom: 8 }}>{addressesError}</Text>
+                <TouchableOpacity onPress={reloadAddresses}>
+                  <Text style={{ color: colors.primary, fontWeight: "700" }}>Try again</Text>
+                </TouchableOpacity>
               </View>
-              <Text style={[styles.addressText, { color: colors.subtext }]}>New York, NY 10001</Text>
-              <TouchableOpacity style={styles.changeAddressBtn}>
-                <Text style={{ color: colors.primary, fontWeight: "700", fontSize: 13 }}>Change Address</Text>
-              </TouchableOpacity>
-            </View>
+            ) : (
+              <>
+                {addresses.length === 0 && (
+                  <Text style={[styles.addressText, { color: colors.subtext, marginBottom: 12 }]}>
+                    You don't have a saved address yet. Add one to continue.
+                  </Text>
+                )}
+                {addresses.map((a) => {
+                  const isActive = a.id === selectedAddressId;
+                  return (
+                    <TouchableOpacity
+                      key={a.id}
+                      style={[
+                        styles.addressCard,
+                        {
+                          backgroundColor: colors.card,
+                          borderColor: isActive ? colors.primary : colors.border,
+                          borderWidth: isActive ? 2 : 1,
+                        },
+                      ]}
+                      onPress={() => setSelectedAddressId(a.id)}
+                    >
+                      <View style={styles.addressHeaderRow}>
+                        <Text style={{ fontSize: 18 }}>{a.label === "Work" ? "💼" : a.label === "Home" ? "🏠" : "📍"}</Text>
+                        <Text style={[styles.addressName, { color: colors.text, flex: 1 }]}>
+                          {a.label} · {a.fullName}
+                        </Text>
+                        <View style={[styles.radioOuter, { borderColor: isActive ? colors.primary : colors.border }]}>
+                          {isActive && <View style={[styles.radioInner, { backgroundColor: colors.primary }]} />}
+                        </View>
+                      </View>
+                      <Text style={[styles.addressText, { color: colors.subtext }]}>{formatAddress(a)}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+                <TouchableOpacity
+                  style={[styles.addAddressBtn, { borderColor: colors.primary }]}
+                  onPress={() => router.push("/(stack)/address-form")}
+                >
+                  <Text style={{ color: colors.primary, fontWeight: "700" }}>+ Add New Address</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         )}
 
@@ -165,7 +263,7 @@ export default function Checkout() {
                       borderWidth: isActive ? 2 : 1,
                     },
                   ]}
-                  onPress={() => setSelectedPayment(method.id)}
+                  onPress={() => setSelectedPayment(method.id as Order["paymentMethod"])}
                 >
                   <Text style={{ fontSize: 22, marginRight: 12 }}>{method.icon}</Text>
                   <View style={{ flex: 1 }}>
@@ -178,6 +276,9 @@ export default function Checkout() {
                 </TouchableOpacity>
               );
             })}
+            <Text style={[styles.addressText, { color: colors.subtext, marginTop: 4 }]}>
+              ℹ️ This is a demo store: no payment is collected when you place an order.
+            </Text>
           </View>
         )}
 
@@ -187,7 +288,9 @@ export default function Checkout() {
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Review Your Order</Text>
             <View style={[styles.reviewCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Text style={[styles.reviewLabel, { color: colors.subtext }]}>Deliver to</Text>
-              <Text style={[styles.reviewValue, { color: colors.text }]}>123 Main Street, New York, NY 10001</Text>
+              <Text style={[styles.reviewValue, { color: colors.text }]}>
+                {selectedAddress ? `${selectedAddress.fullName}, ${formatAddress(selectedAddress)}` : "—"}
+              </Text>
               <View style={[styles.divider, { backgroundColor: colors.border }]} />
               <Text style={[styles.reviewLabel, { color: colors.subtext }]}>Payment</Text>
               <Text style={[styles.reviewValue, { color: colors.text }]}>
@@ -203,16 +306,16 @@ export default function Checkout() {
           <View style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.summaryRow}>
               <Text style={[styles.summaryLabel, { color: colors.subtext }]}>Subtotal</Text>
-              <Text style={[styles.summaryValue, { color: colors.text }]}>${total}</Text>
+              <Text style={[styles.summaryValue, { color: colors.text }]}>${money(total)}</Text>
             </View>
             <View style={styles.summaryRow}>
               <Text style={[styles.summaryLabel, { color: colors.subtext }]}>Delivery</Text>
-              <Text style={[styles.summaryValue, { color: colors.text }]}>${delivery}</Text>
+              <Text style={[styles.summaryValue, { color: colors.text }]}>{delivery === 0 ? "FREE" : `$${money(delivery)}`}</Text>
             </View>
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
             <View style={styles.summaryRow}>
               <Text style={[styles.totalLabel, { color: colors.text }]}>Total</Text>
-              <Text style={[styles.totalValue, { color: colors.primary }]}>${grandTotal}</Text>
+              <Text style={[styles.totalValue, { color: colors.primary }]}>${money(grandTotal)}</Text>
             </View>
           </View>
         </View>
@@ -221,12 +324,20 @@ export default function Checkout() {
       <View style={[styles.footer, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <View>
           <Text style={[styles.footerLabel, { color: colors.subtext }]}>Total</Text>
-          <Text style={[styles.footerTotal, { color: colors.text }]}>${grandTotal}</Text>
+          <Text style={[styles.footerTotal, { color: colors.text }]}>${money(grandTotal)}</Text>
         </View>
-        <TouchableOpacity style={[styles.nextBtn, { backgroundColor: colors.primary }]} onPress={goNext}>
-          <Text style={styles.nextBtnText}>
-            {stepIndex === steps.length - 1 ? "Place Order 🎉" : "Continue"}
-          </Text>
+        <TouchableOpacity
+          style={[styles.nextBtn, { backgroundColor: colors.primary, opacity: canContinue && !placing ? 1 : 0.5 }]}
+          onPress={goNext}
+          disabled={!canContinue || placing}
+        >
+          {placing ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.nextBtnText}>
+              {stepIndex === steps.length - 1 ? "Place Order 🎉" : "Continue"}
+            </Text>
+          )}
         </TouchableOpacity>
       </View>
     </View>
@@ -234,7 +345,14 @@ export default function Checkout() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 50 },
+  container: { flex: 1 },
+  addAddressBtn: { borderWidth: 1.5, borderStyle: "dashed", borderRadius: 14, padding: 14, alignItems: "center", marginTop: 4 },
+  emptyState: { justifyContent: "center", alignItems: "center", padding: 40 },
+  emptyIcon: { fontSize: 60, marginBottom: 12 },
+  emptyTitle: { fontSize: 20, fontWeight: "bold", marginBottom: 6 },
+  emptySubtitle: { fontSize: 14, marginBottom: 24, textAlign: "center" },
+  emptyBtn: { paddingHorizontal: 28, paddingVertical: 14, borderRadius: 14 },
+  emptyBtnText: { color: "#fff", fontSize: 15, fontWeight: "bold" },
   headerRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 20, marginBottom: 16 },
   backButton: { marginRight: 10, padding: 6 },
   backButtonText: { fontSize: 22, fontWeight: "700" },
@@ -269,7 +387,6 @@ const styles = StyleSheet.create({
   addressHeaderRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 },
   addressName: { fontSize: 15, fontWeight: "700" },
   addressText: { fontSize: 13, marginBottom: 2, lineHeight: 19 },
-  changeAddressBtn: { marginTop: 10 },
 
   paymentCard: { flexDirection: "row", alignItems: "center", borderRadius: 14, padding: 14, marginBottom: 10 },
   paymentLabel: { fontSize: 15, fontWeight: "600" },
