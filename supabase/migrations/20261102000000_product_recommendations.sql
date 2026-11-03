@@ -6,6 +6,47 @@
 
 create extension if not exists vector with schema extensions;
 
+-- If a table with this name already exists from an older version of the app but
+-- with a different design, rename it to <name>_legacy_<timestamp> (keeping its
+-- data) so the table below can be created. Compatible tables are left alone.
+create or replace function pg_temp.shoply_move_aside_incompatible(
+  p_table text, p_required text[], p_text_id boolean default false
+)
+returns void
+language plpgsql
+as $fn$
+declare
+  v_missing text[];
+  v_new     text;
+begin
+  if to_regclass(format('public.%I', p_table)) is null then
+    return;
+  end if;
+  select array_agg(c) into v_missing
+    from unnest(p_required) as c
+   where not exists (
+     select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = p_table and column_name = c
+   );
+  if v_missing is null and p_text_id and exists (
+    select 1 from information_schema.columns
+     where table_schema = 'public' and table_name = p_table and column_name = 'id'
+       and data_type not in ('text', 'character varying')
+  ) then
+    v_missing := array['id (must be text)'];
+  end if;
+  if v_missing is null then
+    return;
+  end if;
+  v_new := p_table || '_legacy_' || to_char(clock_timestamp(), 'YYYYMMDD_HH24MISS');
+  execute format('alter table public.%I rename to %I', p_table, v_new);
+  raise notice 'Existing table public.% has a different design (missing: %). Renamed it to public.% (data kept) and creating a new one.',
+    p_table, array_to_string(v_missing, ', '), v_new;
+end;
+$fn$;
+
+select pg_temp.shoply_move_aside_incompatible('products', array['id','name','price','original_price','category','icon'], true);
+
 create table if not exists public.products (
   id             text primary key,
   name           text not null,
