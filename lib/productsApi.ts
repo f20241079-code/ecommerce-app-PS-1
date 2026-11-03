@@ -40,6 +40,9 @@ export type ProductRow = {
   warranty?: string | null;
   shipping?: string | null;
   return_policy?: string | null;
+  weight?: number | null;
+  dimensions?: Product["dimensions"] | null;
+  specs?: Product["specs"] | null;
   similarity?: number;
 };
 
@@ -63,12 +66,18 @@ export const fromRow = (r: ProductRow): Product => ({
   warranty: r.warranty ?? undefined,
   shipping: r.shipping ?? undefined,
   returnPolicy: r.return_policy ?? undefined,
+  weight: r.weight != null ? Number(r.weight) : undefined,
+  dimensions: r.dimensions ?? undefined,
+  specs: r.specs && typeof r.specs === "object" ? r.specs : undefined,
 });
 
 // Never select the embedding column: it's large and the app doesn't need it.
-const PRODUCT_COLUMNS =
+const BASE_COLUMNS =
   "id, name, price, original_price, rating, reviews, icon, category, badge, description, tags, " +
   "brand, images, thumbnail, stock, availability_status, warranty, shipping, return_policy";
+// Added by the price-history/specs migration. If that migration hasn't been
+// applied yet, the catalog is loaded without them instead of failing.
+const PRODUCT_COLUMNS = BASE_COLUMNS + ", weight, dimensions, specs";
 
 const byNumericId = (a: Product, b: Product) => {
   const na = Number(a.id);
@@ -108,7 +117,10 @@ const update = (patch: Partial<CatalogState>) => {
 async function fetchCatalog() {
   update({ loading: true, error: null });
   try {
-    const { data, error } = await supabase.from("products").select(PRODUCT_COLUMNS);
+    let { data, error } = await supabase.from("products").select(PRODUCT_COLUMNS);
+    if (error && (error.code === "42703" || /column .* does not exist/i.test(error.message))) {
+      ({ data, error } = await supabase.from("products").select(BASE_COLUMNS));
+    }
     if (error) throw new Error(error.message);
     const rows = (data ?? []) as unknown as ProductRow[];
     if (rows.length === 0) {

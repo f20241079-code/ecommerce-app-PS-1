@@ -44,6 +44,16 @@ function badgeFor(p, discount) {
   return null;
 }
 
+function toDimensions(d) {
+  if (!d || typeof d !== "object") return null;
+  const out = {};
+  for (const k of ["width", "height", "depth"]) {
+    const v = Number(d[k]);
+    if (Number.isFinite(v) && v > 0) out[k] = v;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
 /** Convert one DummyJSON product into a `products` row. Exported for tests. */
 export function toProductRow(p) {
   const listPrice = Number(p.price) || 0;
@@ -72,6 +82,9 @@ export function toProductRow(p) {
     warranty: p.warrantyInformation ?? null,
     shipping: p.shippingInformation ?? null,
     return_policy: p.returnPolicy ?? null,
+    weight: Number.isFinite(Number(p.weight)) && Number(p.weight) > 0 ? Number(p.weight) : null,
+    dimensions: toDimensions(p.dimensions),
+    // `specs` is deliberately not set here, so specs you add in Supabase survive re-imports.
   };
 }
 

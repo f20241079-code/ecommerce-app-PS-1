@@ -32,6 +32,11 @@ export type Product = {
   warranty?: string;
   shipping?: string;
   returnPolicy?: string;
+  /** Weight as given by the data source (DummyJSON doesn't state the unit). */
+  weight?: number;
+  dimensions?: { width?: number; height?: number; depth?: number };
+  /** Free-form specs, e.g. { RAM: "8 GB" }, edited in Supabase. */
+  specs?: Record<string, string | number | boolean>;
 };
 
 export const PRODUCTS: Product[] = [

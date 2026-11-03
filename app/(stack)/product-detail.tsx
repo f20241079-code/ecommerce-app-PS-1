@@ -17,6 +17,8 @@ import ProductImage from "@/components/ProductImage";
 import { categoryLabel, findProduct } from "@/lib/products";
 import { formatPrice, useCatalog, useProductReviews } from "@/lib/productsApi";
 import { useSimilarProducts } from "@/lib/recommendations";
+import PriceHistoryCard from "@/components/PriceHistoryCard";
+import { findComparable, isElectronics } from "@/lib/compare";
 
 const { width } = Dimensions.get("window");
 
@@ -41,7 +43,7 @@ export default function ProductDetail() {
   const [imageIndex, setImageIndex] = useState(0);
 
   // Prefer the live catalog record; fall back to whatever the caller passed.
-  const { version } = useCatalog();
+  const { version, products: catalog } = useCatalog();
   const catalogProduct = useMemo(
     () => findProduct(params.id, params.name),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -63,6 +65,10 @@ export default function ProductDetail() {
       : [];
 
   const similar = useSimilarProducts(catalogProduct?.id);
+  const comparableCount = useMemo(
+    () => (catalogProduct && isElectronics(catalogProduct) ? findComparable(catalogProduct, catalog).total : 0),
+    [catalogProduct, catalog]
+  );
   const { reviews: reviewList } = useProductReviews(catalogProduct?.id);
   const imageSize = Math.min(width - 140, 280);
 
@@ -200,6 +206,26 @@ export default function ProductDetail() {
             </Text>
           )}
         </View>
+
+        {/* Price vs time */}
+        {catalogProduct && <PriceHistoryCard productId={catalogProduct.id} currentPrice={catalogProduct.price} />}
+
+        {/* Spec comparison with similarly priced electronics */}
+        {comparableCount > 0 && (
+          <TouchableOpacity
+            style={[styles.compareCard, { backgroundColor: colors.card, borderColor: colors.primary }]}
+            onPress={() => router.push({ pathname: "/(stack)/compare", params: { id } })}
+          >
+            <Text style={{ fontSize: 26 }}>⚖️</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.compareTitle, { color: colors.text }]}>Compare specs</Text>
+              <Text style={[styles.compareText, { color: colors.subtext }]}>
+                {comparableCount} other electronic{comparableCount === 1 ? "" : "s"} in a similar price range
+              </Text>
+            </View>
+            <Text style={{ color: colors.primary, fontSize: 22, fontWeight: "700" }}>›</Text>
+          </TouchableOpacity>
+        )}
 
         {/* Quantity */}
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -345,6 +371,9 @@ const styles = StyleSheet.create({
   reviewStars: { fontSize: 11 },
   reviewComment: { fontSize: 13, lineHeight: 19 },
   reviewDate: { fontSize: 11, marginTop: 4 },
+  compareCard: { flexDirection: "row", alignItems: "center", gap: 12, marginHorizontal: 16, marginBottom: 12, borderRadius: 16, padding: 16, borderWidth: 1.5 },
+  compareTitle: { fontSize: 15, fontWeight: "bold" },
+  compareText: { fontSize: 12, marginTop: 2 },
   relatedSection: { marginHorizontal: 16, marginBottom: 12 },
   bottomBar: { position: "absolute", bottom: 0, left: 0, right: 0, flexDirection: "row", padding: 16, gap: 12, borderTopWidth: 1, elevation: 10, shadowColor: "#000", shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.1, shadowRadius: 8 },
   wishlistBtn: { width: 52, height: 52, borderRadius: 14, borderWidth: 1.5, justifyContent: "center", alignItems: "center" },

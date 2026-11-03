@@ -34,6 +34,7 @@ The import script uses it to write data. **Never put it in the app or commit it.
    - `supabase/migrations/20261102000000_product_recommendations.sql`
    - `supabase/migrations/20261103000000_real_product_data.sql`
    - `supabase/migrations/20261104000000_orders_and_addresses.sql` (addresses, orders, checkout)
+   - `supabase/migrations/20261105000000_price_history_and_specs.sql` (price history, specs)
 
 2. **Deploy the embedding function.** This is optional, but it switches on the ✨ AI recommendations:
 
@@ -95,3 +96,43 @@ The import script uses it to write data. **Never put it in the app or commit it.
 - To move an order along, change its `status` to `shipped` or `delivered` in the
   Supabase table editor. There is no admin screen yet.
 - This is a demo store: **no payment is collected**.
+
+## Price history (price vs time)
+
+Every product page has a **Price History** chart with these parts:
+- range buttons (1M, 3M, 6M, 1Y, All);
+- current, lowest, highest and average price (the average is weighted by how long each price lasted);
+- a short reading of today's price, for example "Lowest price in 3M" or "11% above the 6M low";
+- a crosshair tooltip on touch or hover;
+- a "Show price changes" table.
+
+- **How it fills up:** a database trigger adds a row to `price_history` every time a
+  product's price changes. This includes changes from re-running the importer and edits in the
+  Supabase table editor. The migration records each product's current price as the starting
+  point. DummyJSON has no past prices, so a fresh install starts with one point per product,
+  and the chart says the price hasn't changed since tracking started.
+- **Demo history (optional):** to fill the charts for a demo, run
+
+  ```powershell
+  $env:SUPABASE_SERVICE_ROLE_KEY="paste-key-here"; node scripts/simulate-price-history.mjs
+  ```
+
+  This adds about 180 days of **made-up** price changes before the first real point. Every simulated
+  row has `source = 'simulated'`, and any chart that includes one shows a
+  **"Demo data · simulated"** badge. Remove them with `--remove`.
+
+## Spec comparison (electronics)
+
+Electronics product pages have a **Compare specs** card. It covers smartphones, laptops, tablets
+and mobile accessories, plus Electronics and Gaming in the offline catalog. It opens a table of
+up to 4 electronics within ±25% of the product's price. If fewer than 2 match, the range widens
+to ±40%. Products in the same category come first. You can remove columns, add others from
+"More in this price range", or add a product to the cart from the table.
+
+Rows are price, discount, rating, reviews, brand, category, availability, warranty, weight,
+size, shipping and returns. **✓** marks the single best value in a row: lowest price, biggest
+discount, highest rating, longest warranty and lightest weight. Ties get no mark.
+
+DummyJSON has **no detailed specs** (RAM, storage, screen size and so on). Add them yourself
+in the `specs` column (JSON), for example `{"RAM": "8 GB", "Storage": "256 GB", "Screen": "6.1\""}`.
+Every key appears as an extra row in the comparison. The importer never overwrites `specs`.
