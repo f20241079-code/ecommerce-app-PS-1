@@ -118,7 +118,7 @@ export default function ProductDetail() {
                 horizontal
                 pagingEnabled
                 showsHorizontalScrollIndicator={false}
-                style={{ width: imageSize }}
+                style={{ width: imageSize, height: imageSize, flexGrow: 0 }}
                 onMomentumScrollEnd={(e) =>
                   setImageIndex(Math.round(e.nativeEvent.contentOffset.x / imageSize))
                 }

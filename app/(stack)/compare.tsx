@@ -102,7 +102,7 @@ export default function Compare() {
           </View>
 
           {/* Product columns */}
-          <ScrollView horizontal showsHorizontalScrollIndicator>
+          <ScrollView horizontal showsHorizontalScrollIndicator style={{ flexGrow: 0 }}>
             <View>
               <View style={{ flexDirection: "row", height: HEADER_H }}>
                 {selected.map((p) => (
