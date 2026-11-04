@@ -152,6 +152,7 @@ export default function Home() {
       <FlatList
         data={categories}
         horizontal
+        style={{ flexGrow: 0 }}
         showsHorizontalScrollIndicator={false}
         keyExtractor={(item) => item.slug}
         contentContainerStyle={styles.categoriesList}
@@ -195,6 +196,7 @@ export default function Home() {
       <FlatList
         data={featuredProducts}
         horizontal
+        style={{ flexGrow: 0 }}
         showsHorizontalScrollIndicator={false}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.featuredList}
@@ -283,7 +285,8 @@ const styles = StyleSheet.create({
   searchContainer: { flexDirection: "row", alignItems: "center", borderRadius: 16, paddingHorizontal: 16, paddingVertical: 14, borderWidth: 1, elevation: 4, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8 },
   searchIcon: { fontSize: 18, marginRight: 8 },
   searchPlaceholder: { fontSize: 15, flex: 1 },
-  bannerScroll: { paddingLeft: 20, marginBottom: 20 },
+  // flexGrow: 0 on horizontal lists: Android otherwise stretches them vertically.
+  bannerScroll: { paddingLeft: 20, marginBottom: 20, flexGrow: 0 },
   banner: { borderRadius: 20, padding: 20, marginRight: 12, height: 130, flexDirection: "row", alignItems: "center", gap: 16 },
   bannerIcon: { fontSize: 56 },
   bannerTitle: { fontSize: 20, fontWeight: "bold", color: "#fff", marginBottom: 4 },

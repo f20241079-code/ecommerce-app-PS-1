@@ -33,7 +33,7 @@ export default function RecommendedProducts({ title, result, style }: Props) {
           </View>
         )}
       </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.scroller} contentContainerStyle={styles.row}>
         {result.items.map((item) => (
           <TouchableOpacity
             key={item.id}
@@ -58,6 +58,8 @@ const styles = StyleSheet.create({
   title: { fontSize: 16, fontWeight: "bold" },
   aiBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
   aiBadgeText: { color: "#fff", fontSize: 10, fontWeight: "bold" },
+  // flexGrow: 0 stops Android from stretching a horizontal list to fill the screen.
+  scroller: { flexGrow: 0 },
   row: { paddingRight: 6 },
   card: { width: 120, borderRadius: 14, padding: 12, marginRight: 10, borderWidth: 1, alignItems: "center" },
   icon: { marginBottom: 6 },
