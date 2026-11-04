@@ -14,7 +14,7 @@
  *   macOS / Linux:
  *     SUPABASE_SERVICE_ROLE_KEY=... node scripts/simulate-price-history.mjs
  *
- * Options:  --days 180   how far back to simulate (default 180, max 730)
+ * Options:  --days 365   how far back to simulate (default 365 = 12 months, max 730)
  *           --remove     delete all simulated points and exit
  *
  * Safe to re-run: previous simulated points are replaced. Recorded points
@@ -84,7 +84,7 @@ async function main() {
     process.exit(1);
   }
   const daysArg = process.argv.indexOf("--days");
-  const days = Math.min(730, Math.max(14, daysArg > 0 ? Number(process.argv[daysArg + 1]) || 180 : 180));
+  const days = Math.min(730, Math.max(14, daysArg > 0 ? Number(process.argv[daysArg + 1]) || 365 : 365));
   const supabase = createClient(url, key, { auth: { persistSession: false } });
 
   const { error: delError, count } = await supabase

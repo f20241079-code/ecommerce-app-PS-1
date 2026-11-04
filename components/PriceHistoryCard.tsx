@@ -59,7 +59,7 @@ type Props = { productId?: string; currentPrice: number };
 export default function PriceHistoryCard({ productId, currentPrice }: Props) {
   const { colors } = useTheme();
   const { points: history, loading, error } = usePriceHistory(productId);
-  const [rangeKey, setRangeKey] = useState("6m");
+  const [rangeKey, setRangeKey] = useState("1y");
   const [width, setWidth] = useState(0);
   const [hoverT, setHoverT] = useState<number | null>(null);
   const [showTable, setShowTable] = useState(false);
