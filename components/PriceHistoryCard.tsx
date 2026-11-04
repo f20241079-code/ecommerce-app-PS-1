@@ -88,7 +88,8 @@ export default function PriceHistoryCard({ productId, currentPrice }: Props) {
     }
     const baseY = PAD.top + plotH;
     const area = `${line} V${baseY} H${x(series.points[0].at)} Z`;
-    const xTicks = [series.start, series.start + span / 2, series.end];
+    // Short spans: just start and "Today", so the same date isn't printed twice.
+    const xTicks = span < 3 * 24 * 60 * 60 * 1000 ? [series.start, series.end] : [series.start, series.start + span / 2, series.end];
     return { x, y, ticks, step, line, area, xTicks, invertX: (px: number) => series.start + ((px - PAD.left) / plotW) * span };
   }, [series, plotW, plotH]);
 
@@ -226,9 +227,9 @@ export default function PriceHistoryCard({ productId, currentPrice }: Props) {
                 y={CHART_HEIGHT - 6}
                 fontSize={10}
                 fill={colors.subtext}
-                textAnchor={i === 0 ? "start" : i === 2 ? "end" : "middle"}
+                textAnchor={i === 0 ? "start" : i === geometry.xTicks.length - 1 ? "end" : "middle"}
               >
-                {i === 2 ? "Today" : shortDate(t)}
+                {i === geometry.xTicks.length - 1 ? "Today" : shortDate(t)}
               </SvgText>
             ))}
             <Path d={geometry.area} fill={colors.primary} opacity={0.1} />
@@ -263,8 +264,9 @@ export default function PriceHistoryCard({ productId, currentPrice }: Props) {
 
       {tracking && (
         <Text style={[styles.note, { color: colors.subtext }]}>
-          The price hasn't changed since tracking started {series.coveredDays > 0 ? `${series.coveredDays} days ago` : "today"}.
-          The chart fills in as the price changes.
+          No price changes yet. Tracking started on {longDate(series.start)}
+          {series.coveredDays === 0 ? " (today)" : series.coveredDays === 1 ? " (1 day ago)" : ` (${series.coveredDays} days ago)`}, and
+          this chart fills in as the price changes.
         </Text>
       )}
 
