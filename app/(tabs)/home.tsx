@@ -15,7 +15,7 @@ import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
 import RecommendedProducts from "@/components/RecommendedProducts";
 import { findProduct, type Product } from "@/lib/products";
-import { productParams, useCatalog, useCategories, discountPercent, formatPrice } from "@/lib/productsApi";
+import { productParams, useCatalog, useCategories, discountPercent, formatPrice, featuredDeals, FEATURED_SLUG } from "@/lib/productsApi";
 import ProductImage from "@/components/ProductImage";
 import { useRecommendations } from "@/lib/recommendations";
 
@@ -49,14 +49,7 @@ export default function Home() {
   const [visibleCount, setVisibleCount] = React.useState(PAGE_SIZE);
 
   // Featured = best-rated products with a real discount.
-  const featuredProducts = React.useMemo(
-    () =>
-      [...allProducts]
-        .filter((p) => discountPercent(p) > 0)
-        .sort((a, b) => b.rating - a.rating || discountPercent(b) - discountPercent(a))
-        .slice(0, 8),
-    [allProducts]
-  );
+  const featuredProducts = React.useMemo(() => featuredDeals(allProducts).slice(0, 8), [allProducts]);
 
   // Banners point at real categories from the catalog.
   const banners = React.useMemo(() => {
@@ -152,7 +145,7 @@ export default function Home() {
       {/* Categories - Horizontal Scroll */}
       <View style={styles.sectionHeader}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>🗂️ Categories</Text>
-        <TouchableOpacity>
+        <TouchableOpacity onPress={() => router.push("/(stack)/categories")} hitSlop={10}>
           <Text style={[styles.seeAll, { color: colors.primary }]}>See All</Text>
         </TouchableOpacity>
       </View>
@@ -192,7 +185,10 @@ export default function Home() {
       {/* Featured Products - Horizontal Scroll */}
       <View style={styles.sectionHeader}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>🔥 Featured</Text>
-        <TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => router.push({ pathname: "/(stack)/category", params: { name: FEATURED_SLUG } })}
+          hitSlop={10}
+        >
           <Text style={[styles.seeAll, { color: colors.primary }]}>See All</Text>
         </TouchableOpacity>
       </View>

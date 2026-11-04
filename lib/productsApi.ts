@@ -308,3 +308,13 @@ export function matchesQuery(p: Product, query: string): boolean {
 
 /** 40 -> "40", 47.5 -> "47.50" */
 export const formatPrice = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2));
+
+/** Slug used by the "Featured → See All" screen. */
+export const FEATURED_SLUG = "featured";
+
+/** Featured = discounted products, best rated first (then biggest discount). */
+export function featuredDeals(products: Product[]): Product[] {
+  return products
+    .filter((p) => discountPercent(p) > 0)
+    .sort((a, b) => b.rating - a.rating || discountPercent(b) - discountPercent(a));
+}

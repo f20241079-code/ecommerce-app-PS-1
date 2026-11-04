@@ -14,7 +14,14 @@ import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
 import ProductImage from "@/components/ProductImage";
 import { categoryLabel } from "@/lib/products";
-import { discountPercent, productParams, useCatalog, formatPrice } from "@/lib/productsApi";
+import {
+  discountPercent,
+  featuredDeals,
+  FEATURED_SLUG,
+  formatPrice,
+  productParams,
+  useCatalog,
+} from "@/lib/productsApi";
 
 type SortOption = "default" | "price_asc" | "price_desc" | "rating";
 
@@ -31,10 +38,14 @@ export default function Category() {
 
   const { products: allProducts, loading } = useCatalog();
   const slug = String(name ?? "");
+  const isFeatured = slug === FEATURED_SLUG;
+  const title = isFeatured ? "🔥 Featured Deals" : categoryLabel(slug);
   // Match the slug ("mens-shirts") or a display name ("Mens Shirts").
-  const filtered = allProducts.filter(
-    (p) => p.category === slug || categoryLabel(p.category).toLowerCase() === slug.toLowerCase()
-  );
+  const filtered = isFeatured
+    ? featuredDeals(allProducts)
+    : allProducts.filter(
+        (p) => p.category === slug || categoryLabel(p.category).toLowerCase() === slug.toLowerCase()
+      );
 
   const sorted = [...filtered].sort((a, b) => {
     if (sortBy === "price_asc") return a.price - b.price;
@@ -50,7 +61,7 @@ export default function Category() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={1}>{categoryLabel(slug)}</Text>
+        <Text style={styles.headerTitle} numberOfLines={1}>{title}</Text>
         <TouchableOpacity
           style={[styles.sortBtn, { backgroundColor: "rgba(255,255,255,0.2)" }]}
           onPress={() => setShowSort(!showSort)}

@@ -22,14 +22,6 @@ import { findComparable, isElectronics } from "@/lib/compare";
 
 const { width } = Dimensions.get("window");
 
-const productDescriptions: { [key: string]: string } = {
-  "iPhone 15 Pro": "The most powerful iPhone ever with A17 Pro chip, titanium design, and advanced camera system with 5x optical zoom. Features USB-C connectivity and Action Button.",
-  "Nike Air Max 270": "Experience ultimate comfort with Nike's largest heel Air unit yet. Breathable mesh upper with foam midsole for all-day wear and style.",
-  "MacBook Pro 16\"": "Supercharged by M3 Pro chip. Up to 22 hours battery life. Liquid Retina XDR display with ProMotion technology. Perfect for professionals.",
-  "Sony WH-1000XM5": "Industry-leading noise canceling with auto NC optimizer. 30-hour battery life with quick charge. Crystal clear hands-free calling.",
-  "Samsung 65\" TV": "Quantum HDR 32x, Real Game Enhancer+. Stunning 4K picture quality with Neural Quantum Processor. Smart TV with built-in streaming.",
-};
-
 export default function ProductDetail() {
   const params = useLocalSearchParams<{
     id?: string; name?: string; price?: string; originalPrice?: string; rating?: string;
@@ -74,7 +66,7 @@ export default function ProductDetail() {
 
   const inWishlist = isInWishlist(id as string);
   const discount = originalPrice && originalPrice > price ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
-  const productDesc = description || productDescriptions[name] || "Premium quality product with excellent features and durability. Perfect for everyday use and comes with a 1 year warranty and free returns within 30 days.";
+  const productDesc = description.trim();
 
 
   const handleAddToCart = () => {
@@ -207,6 +199,27 @@ export default function ProductDetail() {
           )}
         </View>
 
+        {/* Description */}
+        <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Description</Text>
+          {productDesc ? (
+            <Text style={[styles.description, { color: colors.subtext }]}>{productDesc}</Text>
+          ) : (
+            <Text style={[styles.description, { color: colors.subtext, fontStyle: "italic" }]}>
+              No description available for this product.
+            </Text>
+          )}
+          {!!catalogProduct?.tags?.length && (
+            <View style={styles.tagsRow}>
+              {catalogProduct.tags.slice(0, 6).map((t) => (
+                <View key={t} style={[styles.tag, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                  <Text style={[styles.tagText, { color: colors.subtext }]}>#{t}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+
         {/* Price vs time */}
         {catalogProduct && <PriceHistoryCard productId={catalogProduct.id} currentPrice={catalogProduct.price} />}
 
@@ -250,11 +263,6 @@ export default function ProductDetail() {
           </View>
         </View>
 
-        {/* Description */}
-        <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Description</Text>
-          <Text style={[styles.description, { color: colors.subtext }]}>{productDesc}</Text>
-        </View>
 
         {/* Features / product details */}
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -360,6 +368,9 @@ const styles = StyleSheet.create({
   qtyNumber: { fontSize: 20, fontWeight: "bold", minWidth: 30, textAlign: "center" },
   qtyTotal: { fontSize: 14, marginLeft: 8 },
   description: { fontSize: 14, lineHeight: 22 },
+  tagsRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 10 },
+  tag: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 },
+  tagText: { fontSize: 11 },
   feature: { fontSize: 13, marginBottom: 6, lineHeight: 20 },
   brand: { fontSize: 12, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 },
   stock: { fontSize: 13, fontWeight: "600", marginTop: 10 },
