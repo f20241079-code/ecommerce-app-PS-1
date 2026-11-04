@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  ActivityIndicator,
   Dimensions,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -14,8 +15,8 @@ import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
 import RecommendedProducts from "@/components/RecommendedProducts";
 import ProductImage from "@/components/ProductImage";
-import { categoryLabel, findProduct } from "@/lib/products";
-import { formatPrice, useCatalog, useProductReviews } from "@/lib/productsApi";
+import { categoryLabel } from "@/lib/products";
+import { formatPrice, useCatalog, useProductReviews, useResolvedProduct } from "@/lib/productsApi";
 import { useSimilarProducts } from "@/lib/recommendations";
 import PriceHistoryCard from "@/components/PriceHistoryCard";
 import { findComparable, isElectronics } from "@/lib/compare";
@@ -34,13 +35,10 @@ export default function ProductDetail() {
   const [quantity, setQuantity] = useState(1);
   const [imageIndex, setImageIndex] = useState(0);
 
-  // Prefer the live catalog record; fall back to whatever the caller passed.
-  const { version, products: catalog } = useCatalog();
-  const catalogProduct = useMemo(
-    () => findProduct(params.id, params.name),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [params.id, params.name, version]
-  );
+  // The full product record (catalog by id/name, or fetched from Supabase).
+  // Only the fields passed in the navigation params are used until it arrives.
+  const { products: catalog } = useCatalog();
+  const { product: catalogProduct, loading: productLoading } = useResolvedProduct(params.id, params.name);
   const id = catalogProduct?.id ?? String(params.id ?? "");
   const name = catalogProduct?.name ?? String(params.name ?? "");
   const price = catalogProduct?.price ?? Number(params.price ?? 0);
@@ -204,6 +202,8 @@ export default function ProductDetail() {
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Description</Text>
           {productDesc ? (
             <Text style={[styles.description, { color: colors.subtext }]}>{productDesc}</Text>
+          ) : productLoading ? (
+            <ActivityIndicator color={colors.primary} style={{ alignSelf: "flex-start" }} />
           ) : (
             <Text style={[styles.description, { color: colors.subtext, fontStyle: "italic" }]}>
               No description available for this product.
