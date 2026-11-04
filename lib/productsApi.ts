@@ -180,6 +180,60 @@ export function useProduct(id: string | undefined) {
   return { product, loading };
 }
 
+const sameName = (a: string, b: string) =>
+  a.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim() === b.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
+/** Load one product straight from Supabase (used when it isn't in the loaded catalog). */
+export async function fetchProductById(id: string): Promise<Product | null> {
+  let { data, error } = await supabase.from("products").select(PRODUCT_COLUMNS).eq("id", id).maybeSingle();
+  if (error && (error.code === "42703" || /column .* does not exist/i.test(error.message))) {
+    ({ data, error } = await supabase.from("products").select(BASE_COLUMNS).eq("id", id).maybeSingle());
+  }
+  if (error || !data) return null;
+  return fromRow(data as unknown as ProductRow);
+}
+
+/**
+ * The full product record for a product page, from navigation params.
+ *
+ * 1. The loaded catalog, matched by id (and name, when given, so an old cart
+ *    item whose id now belongs to a different product isn't mixed up).
+ * 2. The catalog matched by name alone (items saved from the offline catalog).
+ * 3. Supabase directly, by id, when the catalog hasn't loaded it.
+ */
+export function useResolvedProduct(id: string | undefined, name: string | undefined) {
+  const { products, loading } = useCatalog();
+  const fromCatalog = useMemo(() => {
+    if (id) {
+      const p = products.find((x) => x.id === id);
+      if (p && (!name || sameName(p.name, name))) return p;
+    }
+    if (name) return products.find((x) => sameName(x.name, name));
+    return undefined;
+  }, [products, id, name]);
+
+  const [fetched, setFetched] = useState<Product | null>(null);
+  const [fetching, setFetching] = useState(false);
+  useEffect(() => {
+    setFetched(null);
+    if (fromCatalog || !id || loading) return;
+    let cancelled = false;
+    setFetching(true);
+    fetchProductById(id)
+      .then((p) => {
+        if (!cancelled && p && (!name || sameName(p.name, name))) setFetched(p);
+      })
+      .finally(() => {
+        if (!cancelled) setFetching(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [fromCatalog, id, name, loading]);
+
+  return { product: fromCatalog ?? fetched ?? undefined, loading: loading || fetching };
+}
+
 // ---------------------------------------------------------------------------
 // Categories
 // ---------------------------------------------------------------------------
