@@ -111,15 +111,20 @@ Every product page has a **Price History** chart with these parts:
   Supabase table editor. The migration records each product's current price as the starting
   point. DummyJSON has no past prices, so a fresh install starts with one point per product,
   and the chart says the price hasn't changed since tracking started.
-- **Demo history (optional):** to fill the charts for a demo, run
+- **Demo history (optional):** DummyJSON has no real past prices, so for a demo you can add
+  12 months of **made-up** history. Either way works:
+  - **Easiest:** open `supabase/demo/simulate_price_history_12_months.sql`, paste it into the
+    Supabase SQL Editor and click Run. No script or key is needed.
+  - **Or from your PC:**
 
-  ```powershell
-  $env:SUPABASE_SERVICE_ROLE_KEY="paste-key-here"; node scripts/simulate-price-history.mjs
-  ```
+    ```powershell
+    $env:SUPABASE_SERVICE_ROLE_KEY="paste-key-here"; node scripts/simulate-price-history.mjs
+    ```
 
-  This adds about 180 days of **made-up** price changes before the first real point. Every simulated
-  row has `source = 'simulated'`, and any chart that includes one shows a
-  **"Demo data · simulated"** badge. Remove them with `--remove`.
+  Both add price changes every 1–3 weeks over the 12 months before the first real point. Every
+  simulated row has `source = 'simulated'`, and any chart that includes one shows a
+  **"Demo data · simulated"** badge. Real recorded prices are never touched. Run the SQL's
+  `delete` line, or the script with `--remove`, to clear them. Charts open on the **1Y** range by default.
 
 ## Spec comparison (electronics)
 
